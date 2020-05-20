@@ -1,0 +1,15 @@
+command_back n a0 z a1 d
+command_end v y1 h o0 d
+command_end k o0 nj e1 c
+command_next d a1 lj sh e0
+0 n o1 lj
+1 o0 dj i1 n
+2 d v a1
+3 t rj i1
+4 ch e0 t y1 rj e0
+5 pj a1 tj
+6 sh o1 s tj
+6(2) sh e1 s tj
+7 sj e1 mj
+8 v o1 sj e0 mj
+9 dj e1 vj a0 tj

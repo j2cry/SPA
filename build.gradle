@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+group 'ru.bioresourceslab'
+version '0.10.A2.177'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+task settingsCopy(type: Copy) {
+    from "$projectDir/src/main/resources/spa.properties"
+    into "$buildDir/libs/"
+}
+
+task buildJar(type: Jar) {
+
+    dependsOn(settingsCopy)
+    manifest {
+        attributes('Main-Class': 'ru.bioresourceslab.App',
+                'Implementation-Title': 'Shipment packaging assistant',
+                'Implementation-Version': project.version)
+    }
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:unchecked"
+        options.encoding("UTF-8")
+    }
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://oss.sonatype.org/content/repositories/snapshots" }
+}
+
+dependencies {
+    compile 'com.intellij:forms_rt:7.0.3'
+    compile 'org.apache.poi:poi:4.1.2'
+    compile group: 'edu.cmu.sphinx', name: 'sphinx4-core', version:'5prealpha-SNAPSHOT'
+    compile group: 'edu.cmu.sphinx', name: 'sphinx4-data', version:'5prealpha-SNAPSHOT'
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    implementation 'org.jetbrains:annotations:15.0'
+}
