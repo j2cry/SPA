@@ -8,6 +8,9 @@ version '0.10.A2.177'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
+project.sourceSets.main.java.srcDir('src/main/java')
+project.sourceSets.main.resources.srcDir('src/main/resources')
+
 task settingsCopy(type: Copy) {
     from "$projectDir/src/main/resources/spa.properties"
     into "$buildDir/libs/"
@@ -35,6 +38,8 @@ repositories {
 }
 
 dependencies {
+    compile 'com.miglayout:miglayout-swing:5.2'
+    compile 'com.miglayout:miglayout-core:5.2'
     compile 'com.intellij:forms_rt:7.0.3'
     compile 'org.apache.poi:poi:4.1.2'
     compile group: 'edu.cmu.sphinx', name: 'sphinx4-core', version:'5prealpha-SNAPSHOT'

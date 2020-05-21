@@ -47,7 +47,7 @@ public class Shipment {
         map = new DefaultTableModel(9, 9);
         map.setRowCount(0);
         map.setColumnCount(boxOptions.getColumnsCount());
-        number = "N/A";
+        number = "N";
     }
 
     // constructor with default identifiers

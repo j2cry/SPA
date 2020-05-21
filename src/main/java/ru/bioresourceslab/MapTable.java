@@ -22,6 +22,9 @@ public class MapTable extends JTable {
     public MapTable(){
         this.getTableHeader().setReorderingAllowed(false);
         this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        this.setCellSelectionEnabled(true);
+        this.setFillsViewportHeight(true);
+        this.setVisible(true);
 
         // set table header
         this.getTableHeader().setResizingAllowed(true);
@@ -33,16 +36,22 @@ public class MapTable extends JTable {
         cellRenderer = new WordWrapCellRenderer();
     }
 
-    @Override
-    public boolean isCellEditable(int row, int column) {
-        return super.isCellEditable(row, column);
+//    @Override
+//    public boolean isCellEditable(int row, int column) {
+//        return super.isCellEditable(row, column);
 //        return false;
-    }
+//    }
 
     @Override
     public TableCellRenderer getCellRenderer(int row, int column) {
 //        return super.getCellRenderer(row, column);
-        return cellRenderer;
+        return (cellRenderer == null) ? super.getCellRenderer(row, column) : cellRenderer;
+    }
+
+    @Override
+    public TableCellRenderer getDefaultRenderer(Class<?> columnClass) {
+//        return (cellRenderer == null) ? super.getDefaultRenderer(columnClass) : cellRenderer;
+        return super.getDefaultRenderer(columnClass);
     }
 
     @Override

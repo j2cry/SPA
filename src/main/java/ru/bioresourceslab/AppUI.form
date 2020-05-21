@@ -14,13 +14,16 @@
         </constraints>
         <properties>
           <verticalScrollBarPolicy value="22"/>
+          <visible value="true"/>
         </properties>
         <border type="none"/>
         <children>
-          <component id="7856b" class="ru.bioresourceslab.MapTable" binding="mapTable">
+          <component id="4548f" class="ru.bioresourceslab.MapTable" binding="mapTable">
             <constraints/>
             <properties>
-              <cellSelectionEnabled value="true"/>
+              <doubleBuffered value="true"/>
+              <fillsViewportHeight value="false"/>
+              <visible value="false"/>
             </properties>
           </component>
         </children>
