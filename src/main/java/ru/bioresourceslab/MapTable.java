@@ -19,12 +19,13 @@ public class MapTable extends JTable {
     private final WordWrapCellRenderer cellRenderer;
     private int[] lines;
 
+    private Color bgPacked = new Color(20, 255, 50, 150);
+
     public MapTable(){
         this.getTableHeader().setReorderingAllowed(false);
         this.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         this.setCellSelectionEnabled(true);
         this.setFillsViewportHeight(true);
-        this.setVisible(true);
 
         // set table header
         this.getTableHeader().setResizingAllowed(true);
@@ -36,28 +37,31 @@ public class MapTable extends JTable {
         cellRenderer = new WordWrapCellRenderer();
     }
 
-//    @Override
-//    public boolean isCellEditable(int row, int column) {
+    @Override
+    public boolean isCellEditable(int row, int column) {
 //        return super.isCellEditable(row, column);
-//        return false;
+        return false;
+    }
+
+//    @Override
+//    public TableCellRenderer getCellRenderer(int row, int column) {
+//        return (cellRenderer == null) ? super.getCellRenderer(row, column) : cellRenderer;
 //    }
 
     @Override
-    public TableCellRenderer getCellRenderer(int row, int column) {
-//        return super.getCellRenderer(row, column);
-        return (cellRenderer == null) ? super.getCellRenderer(row, column) : cellRenderer;
-    }
-
-    @Override
     public TableCellRenderer getDefaultRenderer(Class<?> columnClass) {
-//        return (cellRenderer == null) ? super.getDefaultRenderer(columnClass) : cellRenderer;
-        return super.getDefaultRenderer(columnClass);
+        return (cellRenderer == null) ? super.getDefaultRenderer(columnClass) : cellRenderer;
     }
 
     @Override
     public void setModel(@NotNull TableModel dataModel) {
         super.setModel(dataModel);
         this.getModel().addTableModelListener(e -> lines = new int[getColumnCount()]);
+        if (!this.isVisible()) this.setVisible(true);
+    }
+
+    public void setPackedColor(Color bgPacked) {
+        this.bgPacked = bgPacked;
     }
 
 
@@ -72,11 +76,13 @@ public class MapTable extends JTable {
         }
 
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            String textValue = (value == null) ? "" : value.toString();
-            this.setText(textValue);
+            if (value == null) return null;     // насколько это правильно??
+            Sample val = (Sample) value;
+
+            this.setText(val.getPacked() ? val.getCode() + " " + val.getWeight() : val.getCode());
             this.setFont(table.getFont());
             // drawing selection
-            setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
+            setBackground(isSelected ? table.getSelectionBackground() : val.getPacked() ? bgPacked : table.getBackground());
 
             if (lines.length == 0) return null;
             // calculation of the required number of lines
@@ -92,5 +98,4 @@ public class MapTable extends JTable {
             return this;
         }
     }
-
 }

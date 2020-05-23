@@ -3,6 +3,8 @@ package ru.bioresourceslab;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
+import com.jgoodies.forms.layout.CellConstraints;
+import com.jgoodies.forms.layout.FormLayout;
 import edu.cmu.sphinx.api.Configuration;
 import edu.cmu.sphinx.api.LiveSpeechRecognizer;
 
@@ -38,7 +40,7 @@ public class AppUI extends JFrame {
     private JLabel currentPosLabel;
     private JScrollPane listScroll;
     private JTextField shipmentNumberField;
-    private JTable mapTable;
+    private MapTable mapTable;
 
     public static final String ACOUSTIC_MODEL =
             "resource:/cmusphinx-ru-5.2/";
@@ -57,6 +59,7 @@ public class AppUI extends JFrame {
     private Shipment shipment;
 
     // debug variables
+    final Logger log = Logger.getLogger("SPA Logger");
     boolean inDeveloping = false;
 
     public AppUI() {
@@ -72,7 +75,6 @@ public class AppUI extends JFrame {
         // configure logger
         ComponentLogHandler logHandler = new ComponentLogHandler();
         logHandler.setComponent(statusBox);
-        final Logger log = Logger.getLogger("SPA Logger");
         log.addHandler(logHandler);
 
         // adding autosave list on exit
@@ -154,21 +156,23 @@ public class AppUI extends JFrame {
             return;
         }
 
-        // loading fonts for UI
-        Font tableHeaderFont = loadFont(properties, "table.header.font.name", "table.header.font.style", "table.header.font.size");
-        Font tableFont = loadFont(properties, "table.font.name", "table.font.style", "table.font.size");
-        Font infoLabelFont = loadFont(properties, "info.font.name", "info.font.style", "info.font.size");
-        Font posFont = loadFont(properties, "pos.font.name", "pos.font.style", "pos.font.size");
+        // loading parameters for UI
+        Font tableHeaderFont = parseFont(properties, "table.header.font.name", "table.header.font.style", "table.header.font.size");
+        Font tableFont = parseFont(properties, "table.font.name", "table.font.style", "table.font.size");
+        Font infoLabelFont = parseFont(properties, "info.font.name", "info.font.style", "info.font.size");
+        Font posFont = parseFont(properties, "pos.font.name", "pos.font.style", "pos.font.size");
+        String packedColor = properties.getProperty("table.bgcolor.packed");
         currentSampleLabel.setFont(infoLabelFont);
         fromPosLabel.setFont(posFont);
         toPosLabel.setFont(posFont);
         samplesList.setFont(tableFont);
         mapTable.setFont(tableFont);
         mapTable.getTableHeader().setFont(tableHeaderFont);
+        mapTable.setPackedColor(parseColorDef(packedColor, Color.green));
 
         // loading fonts and settings for exporting
-        Font exportHeaderFont = loadFont(properties, "export.header.font.name", "export.header.font.style", "export.header.font.size");
-        Font exportFont = loadFont(properties, "export.font.name", "export.font.style", "export.font.size");
+        Font exportHeaderFont = parseFont(properties, "export.header.font.name", "export.header.font.style", "export.header.font.size");
+        Font exportFont = parseFont(properties, "export.font.name", "export.font.style", "export.font.size");
         int cellWidth = parseNumDef(properties.getProperty("export.width"), 16);
         shipment.setExportParameters(exportHeaderFont, exportFont, cellWidth);
 
@@ -179,7 +183,7 @@ public class AppUI extends JFrame {
         shipment.setBoxOptions(rows, columns, separator);
 
         // loading identifiers
-        listScroll.setPreferredSize(new Dimension(parseNumDef(properties.getProperty("list.width"), 132), -1));
+//        listScroll.setPreferredSize(new Dimension(parseNumDef(properties.getProperty("list.width"), 132), -1));
         String fCode = properties.getProperty("list.code");
         String fWeight = properties.getProperty("list.weight");
         String fStorage = properties.getProperty("list.storage");
@@ -201,7 +205,6 @@ public class AppUI extends JFrame {
 
 // initializing mapTable look&feel
         mapTable.setModel(shipment.getMapModel());
-
 
 // initializing samplesList look&feel
         {
@@ -258,18 +261,17 @@ public class AppUI extends JFrame {
 
 
             // drawing samplesList
-            class samplesListCellRenderer extends DefaultListCellRenderer {
+            samplesList.setCellRenderer(new DefaultListCellRenderer() {
                 @Override
-                public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     Sample item = (Sample) value;
                     JCheckBox listItem = new JCheckBox(item.getCode() + " | " + item.getLocation());
                     listItem.setSelected(item.getPacked());
                     listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
                     return listItem;
                 }
-            }
-            samplesListCellRenderer listRenderer = new samplesListCellRenderer();
-            samplesList.setCellRenderer(listRenderer);
+            });
+
 
             // TODO: popup menu or in-list drag&drop?
         }
@@ -370,7 +372,7 @@ public class AppUI extends JFrame {
         }
     }
 
-    private Font loadFont(Properties p, String nameID, String styleID, String sizeID) {
+    private Font parseFont(Properties p, String nameID, String styleID, String sizeID) {
         String fName = p.getProperty(nameID);
         int fStyle = parseNumDef(p.getProperty(styleID), Font.PLAIN);
         int fSize = parseNumDef(p.getProperty(sizeID), 10);
@@ -386,6 +388,21 @@ public class AppUI extends JFrame {
                 return new Font(fName, Font.PLAIN, fSize);
         }
     }
+
+    private Color parseColorDef(String color, Color defColor) {
+        if (color.length() < 8) return defColor;
+        int[] cl = {0, 0, 0, 0}; // RGBA
+        for (int i = 0; i < 4; i++) {
+            try {
+                cl[i] = Integer.parseInt(color.substring(i * 2, i * 2 + 2), 16);
+            } catch (NumberFormatException e) {
+                log.log(Level.WARNING, "Ошибка чтения параметров: недопустимый параметр цвета.");
+                return defColor;
+            }
+        }
+        return new Color(cl[0], cl[1], cl[2], cl[3]);
+    }
+
 
     // select next/previous (unpacked) sample in the list and return true, if the list is end may return to beginning
     private boolean listSelect(boolean moveDown, boolean unpackedOnly, boolean continueWhenEnd) {
@@ -539,6 +556,8 @@ public class AppUI extends JFrame {
     }
 
     private void debugAction() {
+        String msg = String.valueOf(listScroll.getWidth());
+        log.info(msg);
     }
 
     {
@@ -563,99 +582,147 @@ public class AppUI extends JFrame {
         scrollPane1.setVisible(true);
         mainPanel.add(scrollPane1, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         mapTable = new MapTable();
-        mapTable.setDoubleBuffered(true);
-        mapTable.setFillsViewportHeight(false);
         mapTable.setVisible(false);
         scrollPane1.setViewportView(mapTable);
         listScroll = new JScrollPane();
         listScroll.setVerticalScrollBarPolicy(22);
-        mainPanel.add(listScroll, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        mainPanel.add(listScroll, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, -1), null, 0, false));
         samplesList = new JList();
         listScroll.setViewportView(samplesList);
-        final JPanel panel1 = new JPanel();
-        panel1.setLayout(new GridLayoutManager(1, 5, new Insets(0, 0, 0, 0), -1, -1));
-        mainPanel.add(panel1, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        sampleAddButton = new JButton();
-        sampleAddButton.setIcon(new ImageIcon(getClass().getResource("/addSample16.png")));
-        sampleAddButton.setText("");
-        panel1.add(sampleAddButton, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        sampleDeleteButton = new JButton();
-        sampleDeleteButton.setIcon(new ImageIcon(getClass().getResource("/delSample16.png")));
-        sampleDeleteButton.setText("");
-        panel1.add(sampleDeleteButton, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        sampleEditButton = new JButton();
-        sampleEditButton.setIcon(new ImageIcon(getClass().getResource("/change16.png")));
-        sampleEditButton.setText("");
-        panel1.add(sampleEditButton, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        sampleMoveUpButton = new JButton();
-        sampleMoveUpButton.setIcon(new ImageIcon(getClass().getResource("/upSample16.png")));
-        sampleMoveUpButton.setText("");
-        panel1.add(sampleMoveUpButton, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        sampleMoveDownButton = new JButton();
-        sampleMoveDownButton.setIcon(new ImageIcon(getClass().getResource("/downSample16.png")));
-        sampleMoveDownButton.setText("");
-        panel1.add(sampleMoveDownButton, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JPanel panel2 = new JPanel();
-        panel2.setLayout(new GridLayoutManager(2, 4, new Insets(0, 0, 0, 0), -1, -1));
-        mainPanel.add(panel2, new GridConstraints(3, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
-        loadListButton = new JButton();
-        loadListButton.setText("Загрузить список");
-        panel2.add(loadListButton, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        saveMapButton = new JButton();
-        saveMapButton.setText("Сохранить карту");
-        panel2.add(saveMapButton, new GridConstraints(0, 2, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        debugButton = new JButton();
-        debugButton.setText("debug");
-        panel2.add(debugButton, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        startButton = new JButton();
-        startButton.setText("Начать работу");
-        panel2.add(startButton, new GridConstraints(1, 2, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final Spacer spacer1 = new Spacer();
-        panel2.add(spacer1, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
         final JSeparator separator1 = new JSeparator();
         mainPanel.add(separator1, new GridConstraints(4, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         statusBox = new JComboBox();
         mainPanel.add(statusBox, new GridConstraints(5, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final JPanel panel3 = new JPanel();
-        panel3.setLayout(new GridLayoutManager(2, 5, new Insets(0, 0, 0, 0), -1, -1));
-        mainPanel.add(panel3, new GridConstraints(2, 0, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        final JPanel panel1 = new JPanel();
+        panel1.setLayout(new GridLayoutManager(2, 5, new Insets(0, 0, 0, 0), -1, -1));
+        mainPanel.add(panel1, new GridConstraints(2, 0, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
         currentSampleLabel = new JLabel();
         currentSampleLabel.setText("<текущий образец>");
-        panel3.add(currentSampleLabel, new GridConstraints(0, 1, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        panel1.add(currentSampleLabel, new GridConstraints(0, 1, 2, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         final JLabel label1 = new JLabel();
         label1.setText("от:");
-        panel3.add(label1, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel1.add(label1, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JLabel label2 = new JLabel();
         label2.setText("до:");
-        panel3.add(label2, new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel1.add(label2, new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         fromPosLabel = new JLabel();
         fromPosLabel.setText("<from>");
-        panel3.add(fromPosLabel, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        panel1.add(fromPosLabel, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
         toPosLabel = new JLabel();
         toPosLabel.setText("<to>");
-        panel3.add(toPosLabel, new GridConstraints(1, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        panel1.add(toPosLabel, new GridConstraints(1, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+        final Spacer spacer1 = new Spacer();
+        panel1.add(spacer1, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
         final Spacer spacer2 = new Spacer();
-        panel3.add(spacer2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
-        final Spacer spacer3 = new Spacer();
-        panel3.add(spacer3, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
-        final JPanel panel4 = new JPanel();
-        panel4.setLayout(new GridLayoutManager(1, 6, new Insets(0, 0, 0, 0), -1, -1));
-        mainPanel.add(panel4, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, null, null, 0, false));
+        panel1.add(spacer2, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+        final JPanel panel2 = new JPanel();
+        panel2.setLayout(new GridLayoutManager(1, 6, new Insets(0, 0, 0, 0), -1, -1));
+        mainPanel.add(panel2, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_SOUTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(372, 14), null, 0, false));
         boxesCountLabel = new JLabel();
         boxesCountLabel.setText("Кол-во коробок:");
-        panel4.add(boxesCountLabel, new GridConstraints(0, 5, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel2.add(boxesCountLabel, new GridConstraints(0, 5, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         currentPosLabel = new JLabel();
         currentPosLabel.setText("Позиция:");
-        panel4.add(currentPosLabel, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        final Spacer spacer4 = new Spacer();
-        panel4.add(spacer4, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+        panel2.add(currentPosLabel, new GridConstraints(0, 3, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        final Spacer spacer3 = new Spacer();
+        panel2.add(spacer3, new GridConstraints(0, 4, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
         final JLabel label3 = new JLabel();
         label3.setText("Номер отправки:");
-        panel4.add(label3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        panel2.add(label3, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         shipmentNumberField = new JTextField();
-        panel4.add(shipmentNumberField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(60, -1), null, 0, false));
-        final Spacer spacer5 = new Spacer();
-        panel4.add(spacer5, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+        panel2.add(shipmentNumberField, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_SOUTHWEST, GridConstraints.FILL_NONE, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(60, -1), null, 0, false));
+        final Spacer spacer4 = new Spacer();
+        panel2.add(spacer4, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, 1, null, null, null, 0, false));
+        final JPanel panel3 = new JPanel();
+        panel3.setLayout(new GridBagLayout());
+        mainPanel.add(panel3, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_EAST, GridConstraints.FILL_VERTICAL, 1, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(-1, 28), null, 0, false));
+        sampleDeleteButton = new JButton();
+        sampleDeleteButton.setIcon(new ImageIcon(getClass().getResource("/delSample16.png")));
+        sampleDeleteButton.setMinimumSize(new Dimension(-1, -1));
+        sampleDeleteButton.setPreferredSize(new Dimension(32, -1));
+        sampleDeleteButton.setText("");
+        GridBagConstraints gbc;
+        gbc = new GridBagConstraints();
+        gbc.gridx = 1;
+        gbc.gridy = 0;
+        gbc.gridheight = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        panel3.add(sampleDeleteButton, gbc);
+        sampleEditButton = new JButton();
+        sampleEditButton.setIcon(new ImageIcon(getClass().getResource("/change16.png")));
+        sampleEditButton.setMinimumSize(new Dimension(-1, -1));
+        sampleEditButton.setPreferredSize(new Dimension(32, -1));
+        sampleEditButton.setText("");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 2;
+        gbc.gridy = 0;
+        gbc.gridheight = 2;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        panel3.add(sampleEditButton, gbc);
+        sampleMoveUpButton = new JButton();
+        sampleMoveUpButton.setIcon(new ImageIcon(getClass().getResource("/upSample10.png")));
+        sampleMoveUpButton.setMinimumSize(new Dimension(-1, -1));
+        sampleMoveUpButton.setPreferredSize(new Dimension(32, -1));
+        sampleMoveUpButton.setText("");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 3;
+        gbc.gridy = 0;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        panel3.add(sampleMoveUpButton, gbc);
+        sampleMoveDownButton = new JButton();
+        sampleMoveDownButton.setIcon(new ImageIcon(getClass().getResource("/downSample10.png")));
+        sampleMoveDownButton.setMinimumSize(new Dimension(-1, -1));
+        sampleMoveDownButton.setPreferredSize(new Dimension(32, -1));
+        sampleMoveDownButton.setText("");
+        sampleMoveDownButton.setVerticalAlignment(0);
+        gbc = new GridBagConstraints();
+        gbc.gridx = 3;
+        gbc.gridy = 1;
+        gbc.weightx = 1.0;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        panel3.add(sampleMoveDownButton, gbc);
+        sampleAddButton = new JButton();
+        sampleAddButton.setIcon(new ImageIcon(getClass().getResource("/addSample16.png")));
+        sampleAddButton.setMinimumSize(new Dimension(-1, -1));
+        sampleAddButton.setPreferredSize(new Dimension(32, -1));
+        sampleAddButton.setText("");
+        gbc = new GridBagConstraints();
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridheight = 2;
+        gbc.weighty = 1.0;
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.fill = GridBagConstraints.VERTICAL;
+        panel3.add(sampleAddButton, gbc);
+        final JPanel panel4 = new JPanel();
+        panel4.setLayout(new GridLayoutManager(2, 3, new Insets(0, 0, 0, 0), -1, -1));
+        mainPanel.add(panel4, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_NORTH, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, null, new Dimension(180, -1), null, 0, false));
+        loadListButton = new JButton();
+        loadListButton.setIcon(new ImageIcon(getClass().getResource("/import16.png")));
+        loadListButton.setText("");
+        panel4.add(loadListButton, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(48, -1), null, 0, false));
+        saveMapButton = new JButton();
+        saveMapButton.setIcon(new ImageIcon(getClass().getResource("/save16.png")));
+        saveMapButton.setLabel("");
+        saveMapButton.setText("");
+        panel4.add(saveMapButton, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        startButton = new JButton();
+        startButton.setText("Начать работу");
+        panel4.add(startButton, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        debugButton = new JButton();
+        debugButton.setText("debug");
+        panel4.add(debugButton, new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
     }
 
     /**

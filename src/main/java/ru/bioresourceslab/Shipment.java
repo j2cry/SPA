@@ -187,10 +187,11 @@ public class Shipment {
         map.setColumnCount(boxOptions.getColumnsCount());
         for (int index = 0; index < samples.getSize(); index++) {
             Point pos = boxOptions.translate(index);
-            if (samples.get(index).getPacked())
-                map.setValueAt(samples.get(index).getCode() + " " + samples.get(index).getWeight(), pos.y, pos.x);
-            else
-                map.setValueAt(samples.get(index).getCode(), pos.y, pos.x);
+            map.setValueAt(samples.get(index), pos.y, pos.x);
+//            if (samples.get(index).getPacked())
+//                map.setValueAt(samples.get(index).getCode() + " " + samples.get(index).getWeight(), pos.y, pos.x);
+//            else
+//                map.setValueAt(samples.get(index).getCode(), pos.y, pos.x);
         }
     }
 

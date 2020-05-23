@@ -8,8 +8,8 @@ public class App {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
-//                AppUI mainFrame = new AppUI();
-                AppUIv2 mainFrame = new AppUIv2();
+                AppUI mainFrame = new AppUI();
+//                AppUIv2 mainFrame = new AppUIv2();
                 mainFrame.setVisible(true);
             }
         });//*/

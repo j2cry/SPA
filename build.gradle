@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'ru.bioresourceslab'
-version '0.10.A2.177'
+version '0.10.A2.201'
 
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
