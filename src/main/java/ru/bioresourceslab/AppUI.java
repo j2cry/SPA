@@ -3,8 +3,6 @@ package ru.bioresourceslab;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
-import com.jgoodies.forms.layout.CellConstraints;
-import com.jgoodies.forms.layout.FormLayout;
 import edu.cmu.sphinx.api.Configuration;
 import edu.cmu.sphinx.api.LiveSpeechRecognizer;
 
@@ -38,7 +36,6 @@ public class AppUI extends JFrame {
     private JLabel toPosLabel;
     private JLabel boxesCountLabel;
     private JLabel currentPosLabel;
-    private JScrollPane listScroll;
     private JTextField shipmentNumberField;
     private MapTable mapTable;
 
@@ -66,11 +63,11 @@ public class AppUI extends JFrame {
         super();
 
         // frame settings
-        setContentPane(mainPanel);
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setMinimumSize(new Dimension(1062, 360));
-        setSize(new Dimension(1100, 480));
-        setLocationRelativeTo(null);
+        this.setContentPane(mainPanel);
+        this.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        this.setMinimumSize(new Dimension(1014, 360));
+        pack();
+        this.setLocationRelativeTo(null);
 
         // configure logger
         ComponentLogHandler logHandler = new ComponentLogHandler();
@@ -183,7 +180,6 @@ public class AppUI extends JFrame {
         shipment.setBoxOptions(rows, columns, separator);
 
         // loading identifiers
-//        listScroll.setPreferredSize(new Dimension(parseNumDef(properties.getProperty("list.width"), 132), -1));
         String fCode = properties.getProperty("list.code");
         String fWeight = properties.getProperty("list.weight");
         String fStorage = properties.getProperty("list.storage");
@@ -245,7 +241,23 @@ public class AppUI extends JFrame {
             // TODO: scrolling&selecting on mouse wheel
 //            samplesList.addMouseWheelListener(listMouseAdapter);
 
-            // list selection listener
+            // list model listener: refreshing boxCounter
+            samplesList.getModel().addListDataListener(new ListDataListener() {
+                @Override
+                public void intervalAdded(ListDataEvent e) {
+                    boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
+                }
+
+                @Override
+                public void intervalRemoved(ListDataEvent e) {
+                    boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
+                }
+
+                @Override
+                public void contentsChanged(ListDataEvent e) {
+                }
+            });
+            // list selection listener: auto select mapTable; refresh info
             samplesList.addListSelectionListener(e -> {
                 if (samplesList.isSelectionEmpty()) return;
                 int index = samplesList.getSelectedIndex();
@@ -287,8 +299,12 @@ public class AppUI extends JFrame {
 
 // initializing addSampleButton
         sampleAddButton.addActionListener(e -> {
-            // TODO: UI to add sample
-            shipment.addSample(new Sample("sample", "A", "B", "C", "D", "E"));
+            AddSampleUI addUI = new AddSampleUI(this, true);
+            if (addUI.showModal()) {
+                for (Sample sample : addUI.getData()) {
+                    shipment.addSample(sample);
+                }
+            }
         });
 
 // initializing delSampleButton
@@ -335,7 +351,6 @@ public class AppUI extends JFrame {
             // Reminder msg
             JOptionPane.showMessageDialog(this, "Проследите, чтобы случай не разбивался по разным коробкам!", "Уведомление", JOptionPane.INFORMATION_MESSAGE);
             shipment.importList();
-            boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
             samplesList.setSelectedIndex(0);
         });
 
@@ -556,7 +571,8 @@ public class AppUI extends JFrame {
     }
 
     private void debugAction() {
-        String msg = String.valueOf(listScroll.getWidth());
+//        String msg = Location.getLocationFromStr("1.2.3.4.5", Location.LOC_BOX);
+        String msg = String.valueOf(this.getWidth());
         log.info(msg);
     }
 
@@ -584,11 +600,11 @@ public class AppUI extends JFrame {
         mapTable = new MapTable();
         mapTable.setVisible(false);
         scrollPane1.setViewportView(mapTable);
-        listScroll = new JScrollPane();
-        listScroll.setVerticalScrollBarPolicy(22);
-        mainPanel.add(listScroll, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, -1), null, 0, false));
+        final JScrollPane scrollPane2 = new JScrollPane();
+        scrollPane2.setVerticalScrollBarPolicy(22);
+        mainPanel.add(scrollPane2, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, -1), null, 0, false));
         samplesList = new JList();
-        listScroll.setViewportView(samplesList);
+        scrollPane2.setViewportView(samplesList);
         final JSeparator separator1 = new JSeparator();
         mainPanel.add(separator1, new GridConstraints(4, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         statusBox = new JComboBox();
