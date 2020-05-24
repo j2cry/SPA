@@ -2,9 +2,6 @@ package ru.bioresourceslab;
 
 import org.intellij.lang.annotations.MagicConstant;
 
-import static ru.bioresourceslab.Location.DELIMITER;
-import static ru.bioresourceslab.Location.SPACER;
-
 public class Sample {
     public static final int SAMPLE_CODE = 0x01;
     public static final int SAMPLE_WEIGHT = 0x02;
@@ -16,6 +13,9 @@ public class Sample {
     public static final int SAMPLE_COLUMN = 0x80;
     public static final int SAMPLE_LOCATION = 0xF8;
     public static final int SAMPLE_ALL = 0xFF;
+
+    public static final String DELIMITER = ".";
+    public static final String SPACER = " ";
 
     private String code;
     private String weight = "";

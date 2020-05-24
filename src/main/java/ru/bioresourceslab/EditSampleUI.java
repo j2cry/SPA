@@ -9,8 +9,8 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
 
-import static ru.bioresourceslab.Location.DELIMITER;
-import static ru.bioresourceslab.Location.SPACER;
+import static ru.bioresourceslab.Sample.DELIMITER;
+import static ru.bioresourceslab.Sample.SPACER;
 
 public class EditSampleUI extends JDialog {
     private final JTextComponent inputArea;
