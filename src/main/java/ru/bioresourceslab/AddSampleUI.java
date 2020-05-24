@@ -89,7 +89,7 @@ public class AddSampleUI extends JDialog {
      */
     private void $$$setupUI$$$() {
         addPanel = new JPanel();
-        addPanel.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1, true, false));
+        addPanel.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1));
         addPanel.setPreferredSize(new Dimension(200, 120));
         final JScrollPane scrollPane1 = new JScrollPane();
         addPanel.add(scrollPane1, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));

@@ -13,7 +13,8 @@ public interface Location {
     int LOC_COLUMN = 0x10;
     int LOC_ALL = 0x1F;
 
-    String DELIMITER = Pattern.quote(".");
+    String DELIMITER = ".";
+    String SPACER = " ";
 
     /** THIS FUNCTION IS USELESS
      * get location from formatted string using delimiter.
@@ -21,7 +22,7 @@ public interface Location {
      *               "F" if wrong location flag */
     @Deprecated
     static String getLocationFromStr(@NotNull String formattedSource, @MagicConstant(intValues = {LOC_STORAGE, LOC_RACK, LOC_BOX, LOC_ROW, LOC_COLUMN}) int locationFlags) {
-        String[] str = formattedSource.split(DELIMITER, 5);
+        String[] str = formattedSource.split(Pattern.quote(DELIMITER), 5);
         if (str.length < 5) return "X";
         if ((locationFlags & LOC_ALL) == 0) return "F";
 

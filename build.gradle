@@ -5,8 +5,8 @@ plugins {
 group 'ru.bioresourceslab'
 version '0.10.A2.201'
 
-sourceCompatibility = 1.8
-targetCompatibility = 1.8
+sourceCompatibility = 1.9
+targetCompatibility = 1.9
 
 project.sourceSets.main.java.srcDir('src/main/java')
 project.sourceSets.main.resources.srcDir('src/main/resources')

@@ -1,6 +1,9 @@
 package ru.bioresourceslab;
 
+import org.intellij.lang.annotations.MagicConstant;
+
 import static ru.bioresourceslab.Location.DELIMITER;
+import static ru.bioresourceslab.Location.SPACER;
 
 public class Sample {
     public static final int SAMPLE_CODE = 0x01;
@@ -11,6 +14,7 @@ public class Sample {
     public static final int SAMPLE_BOX = 0x20;
     public static final int SAMPLE_ROW = 0x40;
     public static final int SAMPLE_COLUMN = 0x80;
+    public static final int SAMPLE_LOCATION = 0xF8;
     public static final int SAMPLE_ALL = 0xFF;
 
     private String code;
@@ -61,41 +65,46 @@ public class Sample {
     }
 
     // GETTERS
-    public String getCode() {
-        return code;
-    }
-
-    public String getWeight() {
-        return weight;
-    }
-
     public boolean getPacked() {
         return packed;
     }
 
-    public String getStorage() {
-        return storage;
+    /** Get Sample's fields as string */
+    public String get(@MagicConstant(flags = {SAMPLE_CODE, SAMPLE_WEIGHT, SAMPLE_PACKED, SAMPLE_STORAGE,
+            SAMPLE_RACK, SAMPLE_BOX, SAMPLE_ROW, SAMPLE_COLUMN, SAMPLE_LOCATION, SAMPLE_ALL}) int flags) {
+        if ((flags & 0xFF) == 0) return "nothing requested";
+        String result = "";
+        if ((flags & SAMPLE_CODE) != 0) {
+            result += code;
+        }
+        if ((flags & SAMPLE_WEIGHT) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += SPACER;
+            result += weight;
+        }
+        if ((flags & SAMPLE_PACKED) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += SPACER;
+            result += packed;
+        }
+        if ((flags & SAMPLE_STORAGE) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += SPACER;
+            result += storage;
+        }
+        if ((flags & SAMPLE_RACK) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += DELIMITER;
+            result += rack;
+        }
+        if ((flags & SAMPLE_BOX) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += DELIMITER;
+            result += box;
+        }
+        if ((flags & SAMPLE_ROW) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += DELIMITER;
+            result += row;
+        }
+        if ((flags & SAMPLE_COLUMN) != 0) {
+            if (!result.endsWith(SPACER) & !result.equals("")) result += DELIMITER;
+            result += column;
+        }
+        return result;
     }
-
-    public String getRack() {
-        return rack;
-    }
-
-    public String getBox() {
-        return box;
-    }
-
-    public String getRow() {
-        return row;
-    }
-
-    public String getColumn() {
-        return column;
-    }
-
-    /** Get full formatted sample location with delimiter */
-    public String getLocation() {
-        return storage + DELIMITER + rack + DELIMITER + box + DELIMITER + row + DELIMITER + column;
-    }
-
 }

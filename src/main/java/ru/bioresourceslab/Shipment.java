@@ -1,8 +1,8 @@
 package ru.bioresourceslab;
 
 import org.apache.poi.ss.usermodel.*;
-import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -75,10 +75,12 @@ public class Shipment {
         if (cellWidth > 0) this.cellWidth = cellWidth;
     }
 
+    @Deprecated
     public DefaultListModel<Sample> getListModel() {
         return samples;
     }
 
+    @Deprecated
     public DefaultTableModel getMapModel() {
         return map;
     }
@@ -103,6 +105,8 @@ public class Shipment {
 
     // remove element from list at [index]
     public void removeSample(int index) {
+//      also can use if JavaSource 1.9+
+//        Objects.checkIndex(index, samples.getSize());
         if ((index >= samples.getSize()) || (index < 0)) return;
         samples.remove(index);
         convertToMap();
@@ -113,7 +117,7 @@ public class Shipment {
         if ((destination >= samples.getSize()) || (destination < 0)) return -1;
         if ((index >= samples.getSize()) || (index < 0)) return -2;
 
-        Sample sample = samples.getElementAt(index);
+        Sample sample = samples.get(index);
         if (index < destination) {
             samples.add(destination + 1, sample);
             samples.remove(index);
@@ -126,6 +130,58 @@ public class Shipment {
         return 0;
     }
 
+    // get the sample by index
+    @Nullable
+    public Sample getSample(int index) {
+        if ((index >= samples.getSize()) || (index < 0)) return null;
+        return samples.get(index);
+    }
+
+    // replace all fields in element at [index] with [newSample]
+    public void setSample(int index, Sample newSample) {
+        if ((index >= samples.getSize()) || (index < 0)) return;
+        samples.setElementAt(newSample, index);
+    }
+
+    // rewrite some fields in element at [index] with [newSample]
+/*    public void setSample(int index, @MagicConstant(flags = {SAMPLE_CODE, SAMPLE_WEIGHT, SAMPLE_PACKED, SAMPLE_STORAGE,
+            SAMPLE_RACK, SAMPLE_BOX, SAMPLE_ROW, SAMPLE_COLUMN, SAMPLE_LOCATION, SAMPLE_ALL}) int flags, Sample newSample) {
+        if ((index >= samples.getSize()) || (index < 0)) return;
+        if ((flags & 0xFF) == 0) return;
+
+        if ((flags & SAMPLE_CODE) != 0) {
+            samples.get(index).setCode(newSample.get(SAMPLE_CODE));
+        }
+
+        if ((flags & SAMPLE_WEIGHT) != 0) {
+            samples.get(index).setWeight(newSample.get(SAMPLE_WEIGHT));
+        }
+
+        if ((flags & SAMPLE_PACKED) != 0) {
+            samples.get(index).setPacked(newSample.getPacked());
+        }
+
+        if ((flags & SAMPLE_STORAGE) != 0) {
+            samples.get(index).setStorage(newSample.get(SAMPLE_STORAGE));
+        }
+
+        if ((flags & SAMPLE_RACK) != 0) {
+            samples.get(index).setRack(newSample.get(SAMPLE_RACK));
+        }
+
+        if ((flags & SAMPLE_BOX) != 0) {
+            samples.get(index).setBox(newSample.get(SAMPLE_BOX));
+        }
+
+        if ((flags & SAMPLE_ROW) != 0) {
+            samples.get(index).setRow(newSample.get(SAMPLE_ROW));
+        }
+
+        if ((flags & SAMPLE_COLUMN) != 0) {
+            samples.get(index).setColumn(newSample.get(SAMPLE_COLUMN));
+        }
+    }//*/
+
     // translates to Table position from index
     public Point translate(int index) {
         return boxOptions.translate(index);
@@ -134,49 +190,6 @@ public class Shipment {
     public void revertSampleStatus(int index) {
         if ((index >= 0) & (index <= samples.getSize() - 1)) {
             samples.get(index).setPacked(!samples.get(index).getPacked());
-        }
-    }
-
-    // replace all fields in element at [index] with [newSample]
-    public void setSample(int index, Sample newSample) {
-        samples.setElementAt(newSample, index);
-    }
-
-    // rewrite some fields in element at [index] with [newSample]
-    public void setSample(int index, @MagicConstant(flags = {SAMPLE_CODE, SAMPLE_WEIGHT, SAMPLE_PACKED, SAMPLE_STORAGE,
-            SAMPLE_RACK, SAMPLE_BOX, SAMPLE_ROW, SAMPLE_COLUMN, SAMPLE_ALL}) int flags, Sample newSample) {
-        if ((flags & 0xFF) == 0) return;
-
-        if ((flags & SAMPLE_CODE) != 0) {
-            samples.getElementAt(index).setCode(newSample.getCode());
-        }
-
-        if ((flags & SAMPLE_WEIGHT) != 0) {
-            samples.getElementAt(index).setWeight(newSample.getWeight());
-        }
-
-        if ((flags & SAMPLE_PACKED) != 0) {
-            samples.getElementAt(index).setPacked(newSample.getPacked());
-        }
-
-        if ((flags & SAMPLE_STORAGE) != 0) {
-            samples.getElementAt(index).setStorage(newSample.getStorage());
-        }
-
-        if ((flags & SAMPLE_RACK) != 0) {
-            samples.getElementAt(index).setRack(newSample.getRack());
-        }
-
-        if ((flags & SAMPLE_BOX) != 0) {
-            samples.getElementAt(index).setBox(newSample.getBox());
-        }
-
-        if ((flags & SAMPLE_ROW) != 0) {
-            samples.getElementAt(index).setRow(newSample.getRow());
-        }
-
-        if ((flags & SAMPLE_COLUMN) != 0) {
-            samples.getElementAt(index).setColumn(newSample.getColumn());
         }
     }
 
@@ -235,13 +248,13 @@ public class Shipment {
         for (int index = firstColIndex; index < lastColIndex; index++) {
             String value = fileRow.getCell(index).toString();
 
-            indStorage = value.equals(identifiers.getStorage()) ? (short) index : indStorage;
-            indRack = value.equals(identifiers.getRack()) ? (short) index : indRack;
-            indBox = value.equals(identifiers.getBox()) ? (short) index : indBox;
-            indRow = value.equals(identifiers.getRow()) ? (short) index : indRow;
-            indColumn = value.equals(identifiers.getColumn()) ? (short) index : indColumn;
-            indCode = value.equals(identifiers.getCode()) ? (short) index : indCode;
-            indWeight = value.equals(identifiers.getWeight()) ? (short) index : indWeight;
+            indStorage = value.equals(identifiers.get(SAMPLE_STORAGE)) ? (short) index : indStorage;
+            indRack = value.equals(identifiers.get(SAMPLE_RACK)) ? (short) index : indRack;
+            indBox = value.equals(identifiers.get(SAMPLE_BOX)) ? (short) index : indBox;
+            indRow = value.equals(identifiers.get(SAMPLE_ROW)) ? (short) index : indRow;
+            indColumn = value.equals(identifiers.get(SAMPLE_COLUMN)) ? (short) index : indColumn;
+            indCode = value.equals(identifiers.get(SAMPLE_CODE)) ? (short) index : indCode;
+            indWeight = value.equals(identifiers.get(SAMPLE_WEIGHT)) ? (short) index : indWeight;
         } // end for
         // check if not all columns found
         if ((indStorage == -1) || (indRack == -1) || (indBox == -1) || (indRow == -1) || (indColumn == -1) || (indCode == -1)) {
@@ -320,31 +333,31 @@ public class Shipment {
             Cell cell = dataRow.createCell(column, CellType.STRING);
             switch (column) {
                 case 0: {
-                    cell.setCellValue(identifiers.getStorage());
+                    cell.setCellValue(identifiers.get(SAMPLE_STORAGE));
                     break;
                 }
                 case 1: {
-                    cell.setCellValue(identifiers.getRack());
+                    cell.setCellValue(identifiers.get(SAMPLE_RACK));
                     break;
                 }
                 case 2: {
-                    cell.setCellValue(identifiers.getBox());
+                    cell.setCellValue(identifiers.get(SAMPLE_BOX));
                     break;
                 }
                 case 3: {
-                    cell.setCellValue(identifiers.getRow());
+                    cell.setCellValue(identifiers.get(SAMPLE_ROW));
                     break;
                 }
                 case 4: {
-                    cell.setCellValue(identifiers.getColumn());
+                    cell.setCellValue(identifiers.get(SAMPLE_COLUMN));
                     break;
                 }
                 case 5: {
-                    cell.setCellValue(identifiers.getCode());
+                    cell.setCellValue(identifiers.get(SAMPLE_CODE));
                     break;
                 }
                 case 6: {
-                    cell.setCellValue(identifiers.getWeight());
+                    cell.setCellValue(identifiers.get(SAMPLE_WEIGHT));
                     break;
                 }
             } // end switch
@@ -359,31 +372,31 @@ public class Shipment {
                 Cell cell = dataRow.createCell(column, CellType.STRING);
                 switch (column) {
                     case 0: {
-                        cell.setCellValue(samples.get(i).getStorage());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_STORAGE));
                         break;
                     }
                     case 1: {
-                        cell.setCellValue(samples.get(i).getRack());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_RACK));
                         break;
                     }
                     case 2: {
-                        cell.setCellValue(samples.get(i).getBox());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_BOX));
                         break;
                     }
                     case 3: {
-                        cell.setCellValue(samples.get(i).getRow());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_ROW));
                         break;
                     }
                     case 4: {
-                        cell.setCellValue(samples.get(i).getColumn());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_COLUMN));
                         break;
                     }
                     case 5: {
-                        cell.setCellValue(samples.get(i).getCode());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_CODE));
                         break;
                     }
                     case 6: {
-                        cell.setCellValue(samples.get(i).getWeight());
+                        cell.setCellValue(samples.get(i).get(SAMPLE_WEIGHT));
                         break;
                     }
 //                cell.setCellStyle(cellStyle);
@@ -400,8 +413,6 @@ public class Shipment {
         } catch (IOException e) {
             log.log(Level.WARNING, "Ошибка: не удалось записать файл автосохранения! ");
         }
-
-
     }
 
     // TODO: не работает сохранение .XLSX
@@ -506,7 +517,7 @@ public class Shipment {
                     String value;
                     int index = (column - 1) + boxOptions.getColumnsCount() * row + boxOptions.getCapacity() * block;
                     try {
-                        value = samples.get(index).getCode() + " " + samples.get(index).getWeight();
+                        value = samples.get(index).get(SAMPLE_CODE | SAMPLE_WEIGHT);
                     } catch (NullPointerException | ArrayIndexOutOfBoundsException e) {
                         value = "";
                     }

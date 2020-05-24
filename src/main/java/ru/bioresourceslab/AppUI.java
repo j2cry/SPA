@@ -255,29 +255,26 @@ public class AppUI extends JFrame {
 
                 @Override
                 public void contentsChanged(ListDataEvent e) {
+                    // shows hint with sample location
+                    refreshUI();
                 }
             });
             // list selection listener: auto select mapTable; refresh info
             samplesList.addListSelectionListener(e -> {
                 if (samplesList.isSelectionEmpty()) return;
                 int index = samplesList.getSelectedIndex();
-                // shows hint with sample location
-                Sample sample = samplesList.getModel().getElementAt(samplesList.getSelectedIndex());
-                currentSampleLabel.setText(sample.getCode());
-                fromPosLabel.setText(sample.getLocation());
-                // TODO: сделать вычисление и отображение toPos
-//                    toPosLabel.setText();
                 // auto select map
                 mapTable.changeSelection(shipment.translate(index).y, shipment.translate(index).x, false, false);
+                // shows hint with sample location
+                refreshUI();
             });
-
 
             // drawing samplesList
             samplesList.setCellRenderer(new DefaultListCellRenderer() {
                 @Override
                 public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     Sample item = (Sample) value;
-                    JCheckBox listItem = new JCheckBox(item.getCode() + " | " + item.getLocation());
+                    JCheckBox listItem = new JCheckBox(item.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
                     listItem.setSelected(item.getPacked());
                     listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
                     return listItem;
@@ -288,21 +285,13 @@ public class AppUI extends JFrame {
             // TODO: popup menu or in-list drag&drop?
         }
 
-// initializing shipmentNumberListener
-        shipmentNumberField.addFocusListener(new FocusAdapter() {
-            @Override
-            public void focusLost(FocusEvent e) {
-                super.focusLost(e);
-                shipment.setNumber(shipmentNumberField.getText());
-            }
-        });
-
 // initializing addSampleButton
         sampleAddButton.addActionListener(e -> {
-            AddSampleUI addUI = new AddSampleUI(this, true);
+            EditSampleUI addUI = new EditSampleUI(this, true, false);
             if (addUI.showModal()) {
                 for (Sample sample : addUI.getData()) {
                     shipment.addSample(sample);
+                    if (samplesList.isSelectionEmpty()) samplesList.setSelectedIndex(0);
                 }
             }
         });
@@ -320,6 +309,18 @@ public class AppUI extends JFrame {
                     samplesList.setSelectedIndex(index);
                 }
             }
+        });
+
+        sampleEditButton.addActionListener(e -> {
+            EditSampleUI editUI = new EditSampleUI(this, true, true);
+            Sample sample = shipment.getSample(samplesList.getSelectedIndex());
+            if (sample == null) return;
+            editUI.setData(sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+            if (editUI.showModal()) {
+                shipment.setSample(samplesList.getSelectedIndex(), editUI.getData().get(0));
+//                refreshUI
+            }
+
         });
 
 // initializing moveUpButton
@@ -351,11 +352,14 @@ public class AppUI extends JFrame {
             // Reminder msg
             JOptionPane.showMessageDialog(this, "Проследите, чтобы случай не разбивался по разным коробкам!", "Уведомление", JOptionPane.INFORMATION_MESSAGE);
             shipment.importList();
-            samplesList.setSelectedIndex(0);
+            if (samplesList.isSelectionEmpty()) samplesList.setSelectedIndex(0);
         });
 
 // initializing saveMapButton
-        saveMapButton.addActionListener(e -> shipment.saveMapToFile());
+        saveMapButton.addActionListener(e -> {
+            shipment.setNumber(shipmentNumberField.getText());
+            shipment.saveMapToFile();
+        });
 
         startButton.addActionListener(e -> {
 //            startWork();
@@ -418,6 +422,17 @@ public class AppUI extends JFrame {
         return new Color(cl[0], cl[1], cl[2], cl[3]);
     }
 
+    private void refreshUI() {
+        Sample sample = shipment.getSample(samplesList.getSelectedIndex());
+        if (sample == null) return;
+        // shows hint with sample location
+        currentSampleLabel.setText(sample.get(Sample.SAMPLE_CODE));
+        fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
+        // TODO: сделать вычисление и отображение toPos
+//        toPosLabel.setText();
+
+
+    }
 
     // select next/previous (unpacked) sample in the list and return true, if the list is end may return to beginning
     private boolean listSelect(boolean moveDown, boolean unpackedOnly, boolean continueWhenEnd) {

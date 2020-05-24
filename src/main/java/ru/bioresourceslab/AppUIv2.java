@@ -233,8 +233,8 @@ public class AppUIv2 extends JFrame {
                 int index = samplesList.getSelectedIndex();
                 // shows hint with sample location
                 Sample sample = samplesList.getModel().getElementAt(samplesList.getSelectedIndex());
-                currentSampleLabel.setText(sample.getCode());
-                fromPosLabel.setText(sample.getLocation());
+                currentSampleLabel.setText(sample.get(Sample.SAMPLE_CODE));
+                fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
                 // TODO: сделать вычисление и отображение toPos
 //                    toPosLabel.setText();
                 // auto select map
@@ -247,7 +247,7 @@ public class AppUIv2 extends JFrame {
                 @Override
                 public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
                     Sample item = (Sample) value;
-                    JCheckBox listItem = new JCheckBox(item.getCode() + " | " + item.getLocation());
+                    JCheckBox listItem = new JCheckBox(item.get(Sample.SAMPLE_CODE&Sample.SAMPLE_LOCATION));
                     listItem.setSelected(item.getPacked());
                     listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
                     return listItem;

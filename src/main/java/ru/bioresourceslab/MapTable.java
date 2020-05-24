@@ -79,7 +79,7 @@ public class MapTable extends JTable {
             if (value == null) return null;     // насколько это правильно??
             Sample val = (Sample) value;
 
-            this.setText(val.getPacked() ? val.getCode() + " " + val.getWeight() : val.getCode());
+            this.setText(val.getPacked() ? val.get(Sample.SAMPLE_CODE | Sample.SAMPLE_WEIGHT) : val.get(Sample.SAMPLE_CODE));
             this.setFont(table.getFont());
             // drawing selection
             setBackground(isSelected ? table.getSelectionBackground() : val.getPacked() ? bgPacked : table.getBackground());
