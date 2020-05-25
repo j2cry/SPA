@@ -5,6 +5,7 @@ import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
 import edu.cmu.sphinx.api.Configuration;
 import edu.cmu.sphinx.api.LiveSpeechRecognizer;
+import org.intellij.lang.annotations.MagicConstant;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
@@ -39,6 +40,11 @@ public class AppUI extends JFrame {
     private JTextField shipmentNumberField;
     private MapTable mapTable;
 
+    public static final int UI_SAMPLE_INFO = 0x01;
+    public static final int UI_BOX_COUNTER = 0x02;
+    public static final int UI_SELECTION = 0x04;
+    public static final int UI_ALL = 0x07;
+
     public static final String ACOUSTIC_MODEL =
             "resource:/cmusphinx-ru-5.2/";
     public static final String DICTIONARY_PATH =
@@ -58,6 +64,7 @@ public class AppUI extends JFrame {
     // debug variables
     final Logger log = Logger.getLogger("SPA Logger");
     boolean inDeveloping = false;
+    private static int calls = 0;
 
     public AppUI() {
         super();
@@ -158,14 +165,18 @@ public class AppUI extends JFrame {
         Font tableFont = parseFont(properties, "table.font.name", "table.font.style", "table.font.size");
         Font infoLabelFont = parseFont(properties, "info.font.name", "info.font.style", "info.font.size");
         Font posFont = parseFont(properties, "pos.font.name", "pos.font.style", "pos.font.size");
-        String packedColor = properties.getProperty("table.bgcolor.packed");
+        String packedColor = properties.getProperty("table.color.packed");
+        String bgColor = properties.getProperty("table.color.notpacked");
+        String bgSelection = properties.getProperty("table.color.selection");
         currentSampleLabel.setFont(infoLabelFont);
         fromPosLabel.setFont(posFont);
         toPosLabel.setFont(posFont);
         samplesList.setFont(tableFont);
         mapTable.setFont(tableFont);
         mapTable.getTableHeader().setFont(tableHeaderFont);
-        mapTable.setPackedColor(parseColorDef(packedColor, Color.green));
+        mapTable.setPackedBackground(parseColorDef(packedColor, Color.green));
+        mapTable.setNotPackedBackground(parseColorDef(bgColor, Color.red));
+        mapTable.setSelectionBackground(parseColorDef(bgSelection, Color.blue));
 
         // loading fonts and settings for exporting
         Font exportHeaderFont = parseFont(properties, "export.header.font.name", "export.header.font.style", "export.header.font.size");
@@ -187,8 +198,7 @@ public class AppUI extends JFrame {
         String fBox = properties.getProperty("list.box");
         String fRow = properties.getProperty("list.row");
         String fColumn = properties.getProperty("list.column");
-        Sample fIDs = new Sample(fCode, fStorage, fRack, fBox, fRow, fColumn);
-        fIDs.setWeight(fWeight);
+        Sample fIDs = new Sample(fCode, fWeight, fStorage, fRack, fBox, fRow, fColumn);
         shipment.setIdentifiers(fIDs);
 
         // loading weight range
@@ -198,6 +208,28 @@ public class AppUI extends JFrame {
         // loading parameters
         boolean autoSelect = properties.getProperty("autoselect").equals("true");
 
+        // SHIPMENT LISTENER TO REFRESH UI
+        shipment.addListener(new ShipmentListener() {
+            @Override
+            public void dataAdded(ShipmentEvent source) {
+                refreshUI(UI_ALL);
+            }
+
+            @Override
+            public void dataRemoved(ShipmentEvent source) {
+                refreshUI(UI_ALL, source.getTarget() - 1);
+            }
+
+            @Override
+            public void dataChanged(ShipmentEvent source) {
+                refreshUI(UI_SAMPLE_INFO);
+            }
+
+            @Override
+            public void dataMoved(ShipmentEvent source) {
+                refreshUI(UI_SELECTION, source.getTarget());
+            }
+        });
 
 // initializing mapTable look&feel
         mapTable.setModel(shipment.getMapModel());
@@ -205,6 +237,7 @@ public class AppUI extends JFrame {
 // initializing samplesList look&feel
         {
             samplesList.setModel(shipment.getListModel());
+            samplesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
             // list mouse adapter
             MouseAdapter listMouseAdapter = new MouseAdapter() {
@@ -221,6 +254,8 @@ public class AppUI extends JFrame {
                         shipment.revertSampleStatus(index);
                         samplesList.repaint();
                     }
+                    // refresh infoLabels and selection
+                    refreshUI(UI_SAMPLE_INFO | UI_SELECTION);
                 }
 
                 @Override
@@ -241,34 +276,6 @@ public class AppUI extends JFrame {
             // TODO: scrolling&selecting on mouse wheel
 //            samplesList.addMouseWheelListener(listMouseAdapter);
 
-            // list model listener: refreshing boxCounter
-            samplesList.getModel().addListDataListener(new ListDataListener() {
-                @Override
-                public void intervalAdded(ListDataEvent e) {
-                    boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
-                }
-
-                @Override
-                public void intervalRemoved(ListDataEvent e) {
-                    boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
-                }
-
-                @Override
-                public void contentsChanged(ListDataEvent e) {
-                    // shows hint with sample location
-                    refreshUI();
-                }
-            });
-            // list selection listener: auto select mapTable; refresh info
-            samplesList.addListSelectionListener(e -> {
-                if (samplesList.isSelectionEmpty()) return;
-                int index = samplesList.getSelectedIndex();
-                // auto select map
-                mapTable.changeSelection(shipment.translate(index).y, shipment.translate(index).x, false, false);
-                // shows hint with sample location
-                refreshUI();
-            });
-
             // drawing samplesList
             samplesList.setCellRenderer(new DefaultListCellRenderer() {
                 @Override
@@ -280,8 +287,6 @@ public class AppUI extends JFrame {
                     return listItem;
                 }
             });
-
-
             // TODO: popup menu or in-list drag&drop?
         }
 
@@ -291,7 +296,6 @@ public class AppUI extends JFrame {
             if (addUI.showModal()) {
                 for (Sample sample : addUI.getData()) {
                     shipment.addSample(sample);
-                    if (samplesList.isSelectionEmpty()) samplesList.setSelectedIndex(0);
                 }
             }
         });
@@ -299,16 +303,7 @@ public class AppUI extends JFrame {
 // initializing delSampleButton
         sampleDeleteButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
-            samplesList.clearSelection();
             shipment.removeSample(index);
-            if (samplesList.getModel().getSize() != 0) {
-                if (index > 0) {
-                    samplesList.setSelectedIndex(index - 1);
-                }
-                if (index == 0) {
-                    samplesList.setSelectedIndex(index);
-                }
-            }
         });
 
         sampleEditButton.addActionListener(e -> {
@@ -318,7 +313,6 @@ public class AppUI extends JFrame {
             editUI.setData(sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
             if (editUI.showModal()) {
                 shipment.setSample(samplesList.getSelectedIndex(), editUI.getData().get(0));
-//                refreshUI
             }
 
         });
@@ -326,25 +320,13 @@ public class AppUI extends JFrame {
 // initializing moveUpButton
         sampleMoveUpButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
-            samplesList.clearSelection();
-            if (shipment.moveSample(index, index - 1) == 0) {
-                samplesList.setSelectedIndex(index - 1);
-            } else {
-                samplesList.setSelectedIndex(index);
-            }
+            shipment.moveSample(index, index - 1);
         });
 
 // initializing moveDownButton
         sampleMoveDownButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
-            samplesList.clearSelection();
-            if (shipment.moveSample(index, index + 1) == 0) {
-                samplesList.setSelectedIndex(index + 1);
-            } else {
-                samplesList.setSelectedIndex(index);
-            }
-
-
+            shipment.moveSample(index, index + 1);
         });
 
 // initializing loadListButton
@@ -352,7 +334,6 @@ public class AppUI extends JFrame {
             // Reminder msg
             JOptionPane.showMessageDialog(this, "Проследите, чтобы случай не разбивался по разным коробкам!", "Уведомление", JOptionPane.INFORMATION_MESSAGE);
             shipment.importList();
-            if (samplesList.isSelectionEmpty()) samplesList.setSelectedIndex(0);
         });
 
 // initializing saveMapButton
@@ -422,21 +403,45 @@ public class AppUI extends JFrame {
         return new Color(cl[0], cl[1], cl[2], cl[3]);
     }
 
-    private void refreshUI() {
-        Sample sample = shipment.getSample(samplesList.getSelectedIndex());
-        if (sample == null) return;
-        // shows hint with sample location
-        currentSampleLabel.setText(sample.get(Sample.SAMPLE_CODE));
-        fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
-        // TODO: сделать вычисление и отображение toPos
-//        toPosLabel.setText();
+    private synchronized void refreshUI(@MagicConstant(flags = {UI_SAMPLE_INFO, UI_BOX_COUNTER, UI_SELECTION, UI_ALL}) int flags, int index) {
+        if ((flags & UI_ALL) == 0) return;          // nothing to refresh
+        if (shipment.getSamplesCount() == 0) return; // no refresh if list is empty
+        if ((index >= shipment.getSamplesCount()) || (index < 0)) index = 0;  // if wrong index
 
+        // refresh infoLabels
+        if ((flags & UI_SAMPLE_INFO) != 0) {
+            Sample sample = shipment.getSample(index);
+            if (sample != null) {
+                currentSampleLabel.setText(sample.get(Sample.SAMPLE_CODE));
+                fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
+                // TODO: сделать вычисление и отображение toPos
+//                toPosLabel.setText();
+            }
+        }
+        // refresh boxCounter
+        if ((flags & UI_BOX_COUNTER) != 0) {
+            boxesCountLabel.setText("Кол-во коробок: " + shipment.getBoxesCount());
+        }
+        // refresh selection
+        if ((flags & UI_SELECTION) != 0) {
+            samplesList.setSelectedIndex(index);
+            mapTable.changeSelection(shipment.translate(index).y, shipment.translate(index).x, false, false);
+        }
+    }
 
+    private synchronized void refreshUI(@MagicConstant(flags = {UI_SAMPLE_INFO, UI_BOX_COUNTER, UI_SELECTION, UI_ALL}) int flags) {
+        if (samplesList.isSelectionEmpty()) {
+            refreshUI(flags, 0);
+        } else {
+            refreshUI(flags, samplesList.getSelectedIndex());
+        }
     }
 
     // select next/previous (unpacked) sample in the list and return true, if the list is end may return to beginning
     private boolean listSelect(boolean moveDown, boolean unpackedOnly, boolean continueWhenEnd) {
-        if (samplesList.getModel().getSize() == 0) {
+        int samplesCount = shipment.getSamplesCount();
+        int index = samplesList.getSelectedIndex();
+        if (samplesCount == 0) {
             return false;
         }
 
@@ -444,24 +449,24 @@ public class AppUI extends JFrame {
         int nextIndex;
 
         if (moveDown) {
-            limit = continueWhenEnd ? samplesList.getModel().getSize() - 1 : samplesList.getModel().getSize() - samplesList.getSelectedIndex() - 1;
-            nextIndex = samplesList.getSelectedIndex() + 1;
+            limit = continueWhenEnd ? samplesCount - 1 : samplesCount - index - 1;
+            nextIndex = index + 1;
         } else {
-            limit = continueWhenEnd ? samplesList.getModel().getSize() - 1 : samplesList.getSelectedIndex();
-            nextIndex = samplesList.getSelectedIndex() - 1;
+            limit = continueWhenEnd ? samplesCount - 1 : index;
+            nextIndex = index - 1;
         }
 
         int iter = 0;
         while (iter++ != limit) {
             // reset index when END of list reached
-            if (moveDown & (nextIndex > samplesList.getModel().getSize() - 1)) {
+            if (moveDown & (nextIndex > samplesCount - 1)) {
                 nextIndex = 0;
             }
             // reset index when BEGIN of list reached
             if (!moveDown & (nextIndex < 0)) {
-                nextIndex = samplesList.getModel().getSize() - 1;
+                nextIndex = samplesCount - 1;
             }
-            if (!unpackedOnly || !samplesList.getModel().getElementAt(nextIndex).getPacked()) {
+            if (!unpackedOnly || !shipment.getSample(nextIndex).getPacked()) {
                 samplesList.setSelectedIndex(nextIndex);
                 return true;
             }
@@ -471,7 +476,7 @@ public class AppUI extends JFrame {
     }
 
     private void startWork() {
-/*        int samplesCount = samplesList.getModel().getSize();
+/*        int samplesCount = shipment.getSamplesCount();
         // check if list is empty
         if (samplesCount == 0) {
             addLog("Ошибка: список пуст!");
@@ -479,7 +484,7 @@ public class AppUI extends JFrame {
         }
         // check if list is already done
         for (int index = 0; index < samplesCount; index++) {
-            if (samplesList.getModel().getElementAt(index).isPacked()) {
+            if (shipment.getSample(index).getPacked()) {
                 if (index == samplesCount - 1) {
                     addLog("Ошибка: все образцы уже обработаны.");
                     return;
@@ -505,17 +510,16 @@ public class AppUI extends JFrame {
                 recognizer.startRecognition(true);
                 while (!isInterrupted()) {
                     String utterance = recognizer.getResult().getHypothesis();
-                    Sample sample = samplesList.getModel().getElementAt(samplesList.getSelectedIndex());
+                    Sample sample = shipment.getSample(samplesList.getSelectedIndex());
                     int index = samplesList.getSelectedIndex();
 
                     // if weight was recognized, setWeight and go next sample
                     if (interpretWeight(utterance)) {
                         sample.setWeight(result);
-                        ((MapTableModel) mapTable.getModel()).setSample(sample.getCode() + " " + sample.getWeight(), index);
                         // output result in status-bar
                         addLog(sample.getCode() + " вес " + sample.getWeight());
 
-                        if (!sample.isPacked()) listSwitchSampleCheck(samplesList.getSelectedIndex());
+                        if (!sample.getPacked()) listSwitchSampleCheck(samplesList.getSelectedIndex());
                         endOfSamples = !listSelect(true, true, true);
                         // selecting next cell in map TODO: something another way
                         mapTable.changeSelection(((MapTableModel) mapTable.getModel()).getSampleRow(index), ((MapTableModel) mapTable.getModel()).getSampleColumn(index), true, false);
@@ -619,6 +623,7 @@ public class AppUI extends JFrame {
         scrollPane2.setVerticalScrollBarPolicy(22);
         mainPanel.add(scrollPane2, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, -1), null, 0, false));
         samplesList = new JList();
+        samplesList.setSelectionMode(0);
         scrollPane2.setViewportView(samplesList);
         final JSeparator separator1 = new JSeparator();
         mainPanel.add(separator1, new GridConstraints(4, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));

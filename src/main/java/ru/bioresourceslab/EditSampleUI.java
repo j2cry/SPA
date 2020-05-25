@@ -93,7 +93,7 @@ public class EditSampleUI extends JDialog {
                     loc[i++] = sc.nextToken();
                 }
             } // end if
-            dataList.add(new Sample(sample[0], loc[0], loc[1], loc[2], loc[3], loc[4]));//*/
+            dataList.add(new Sample(sample[0], "", loc[0], loc[1], loc[2], loc[3], loc[4]));//*/
         } // end for
 
         return dataList;
@@ -102,6 +102,5 @@ public class EditSampleUI extends JDialog {
     public void setData(String value) {
         inputArea.setText(value);
     }
-
 
 }

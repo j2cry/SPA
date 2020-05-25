@@ -2,7 +2,7 @@ package ru.bioresourceslab;
 
 import org.intellij.lang.annotations.MagicConstant;
 
-public class Sample {
+public final class Sample {
     public static final int SAMPLE_CODE = 0x01;
     public static final int SAMPLE_WEIGHT = 0x02;
     public static final int SAMPLE_PACKED = 0x04;
@@ -17,13 +17,14 @@ public class Sample {
     public static final String DELIMITER = ".";
     public static final String SPACER = " ";
 
-    private String code;
-    private String weight = "";
+    private final String code;
+    private final String weight;
     private boolean packed = false;
-    private String storage, rack, box, row, column;
+    private final String storage, rack, box, row, column;
 
-    public Sample(String code, String storage, String rack, String box, String row, String column) {
+    public Sample(String code, String weight, String storage, String rack, String box, String row, String column) {
         this.code = code;
+        this.weight = weight;
         this.storage = storage;
         this.rack = rack;
         this.box = box;
@@ -32,36 +33,8 @@ public class Sample {
     }
 
     // SETTERS
-    public void setCode(String code) {
-        this.code = code;
-    }
-
-    public void setWeight(String weight) {
-        this.weight = weight;
-    }
-
     public void setPacked(boolean packed) {
         this.packed = packed;
-    }
-
-    public void setStorage(String storage) {
-        this.storage = storage;
-    }
-
-    public void setRack(String rack) {
-        this.rack = rack;
-    }
-
-    public void setBox(String box) {
-        this.box = box;
-    }
-
-    public void setRow(String row) {
-        this.row = row;
-    }
-
-    public void setColumn(String column) {
-        this.column = column;
     }
 
     // GETTERS
@@ -72,7 +45,7 @@ public class Sample {
     /** Get Sample's fields as string */
     public String get(@MagicConstant(flags = {SAMPLE_CODE, SAMPLE_WEIGHT, SAMPLE_PACKED, SAMPLE_STORAGE,
             SAMPLE_RACK, SAMPLE_BOX, SAMPLE_ROW, SAMPLE_COLUMN, SAMPLE_LOCATION, SAMPLE_ALL}) int flags) {
-        if ((flags & 0xFF) == 0) return "nothing requested";
+        if ((flags & SAMPLE_ALL) == 0) return "nothing requested";
         String result = "";
         if ((flags & SAMPLE_CODE) != 0) {
             result += code;

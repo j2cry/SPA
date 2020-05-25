@@ -16,16 +16,19 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static ru.bioresourceslab.Sample.*;
+import static ru.bioresourceslab.ShipmentEvent.*;
+
 
 /** Класс, описывающий список упаковки и все возможные манипуляции с ним
  * how to use:
  *      1) think
- *      2) shipment number
+ *      2) set shipment number
  *      3) set identifiers (needed for correct loading from excel)
  *      4) set box options and export parameters
- *      5) load list */
+ *      5) load list
+ *      6) add listeners for refreshing UI: check documentation in ShipmentListener! */
 
-public class Shipment {
+public class Shipment extends AbstractShipment {
     private String number;                      // shipment number
     private Sample identifiers;                 // field identifiers (excel column names)
     private final Logger log = Logger.getLogger("SPA Logger");
@@ -52,8 +55,7 @@ public class Shipment {
 
     // constructor with default identifiers
     public Shipment() {
-        this(new Sample("Code", "st0", "st1", "st2", "st3", "st4"));
-        identifiers.setWeight("Weight");
+        this(new Sample("Code", "Weight", "st0", "st1", "st2", "st3", "st4"));
     }
 
     public void setNumber(String number) {
@@ -95,12 +97,14 @@ public class Shipment {
         map.setRowCount(0);
         map.setColumnCount(boxOptions.getColumnsCount());
         number = "0";
+        fireEvent(this, EVENT_SAMPLE_REMOVED, -1);
     }
 
     // add new element to list
     public void addSample(Sample newSample) {
         samples.addElement(newSample);
         convertToMap();
+        fireEvent(this, EVENT_SAMPLE_ADDED, samples.getSize() - 1);
     }
 
     // remove element from list at [index]
@@ -110,12 +114,13 @@ public class Shipment {
         if ((index >= samples.getSize()) || (index < 0)) return;
         samples.remove(index);
         convertToMap();
+        fireEvent(this, EVENT_SAMPLE_REMOVED, index);
     }
 
     // move element at [index] to [destination]
-    public int moveSample(int index, int destination) {
-        if ((destination >= samples.getSize()) || (destination < 0)) return -1;
-        if ((index >= samples.getSize()) || (index < 0)) return -2;
+    public void moveSample(int index, int destination) {
+        if ((destination >= samples.getSize()) || (destination < 0)) return;
+        if ((index >= samples.getSize()) || (index < 0)) return;
 
         Sample sample = samples.get(index);
         if (index < destination) {
@@ -127,7 +132,7 @@ public class Shipment {
             samples.remove(index + 1);
         }
         convertToMap();
-        return 0;
+        fireEvent(this, EVENT_SAMPLE_MOVED, destination);
     }
 
     // get the sample by index
@@ -141,6 +146,7 @@ public class Shipment {
     public void setSample(int index, Sample newSample) {
         if ((index >= samples.getSize()) || (index < 0)) return;
         samples.setElementAt(newSample, index);
+        fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
     // rewrite some fields in element at [index] with [newSample]
@@ -184,13 +190,18 @@ public class Shipment {
 
     // translates to Table position from index
     public Point translate(int index) {
+        if ((index >= samples.getSize()) || (index < 0)) return new Point(-1, -1);
         return boxOptions.translate(index);
     }
 
     public void revertSampleStatus(int index) {
-        if ((index >= 0) & (index <= samples.getSize() - 1)) {
-            samples.get(index).setPacked(!samples.get(index).getPacked());
-        }
+        if ((index >= samples.getSize()) & (index <0)) return;
+        samples.get(index).setPacked(!samples.get(index).getPacked());
+        fireEvent(this, EVENT_SAMPLE_CHANGED, index);
+    }
+
+    public int getSamplesCount() {
+        return samples.getSize();
     }
 
     // convert current list state to map using [BoxOptions]
@@ -201,10 +212,6 @@ public class Shipment {
         for (int index = 0; index < samples.getSize(); index++) {
             Point pos = boxOptions.translate(index);
             map.setValueAt(samples.get(index), pos.y, pos.x);
-//            if (samples.get(index).getPacked())
-//                map.setValueAt(samples.get(index).getCode() + " " + samples.get(index).getWeight(), pos.y, pos.x);
-//            else
-//                map.setValueAt(samples.get(index).getCode(), pos.y, pos.x);
         }
     }
 
@@ -280,17 +287,18 @@ public class Shipment {
             String code = fileRow.getCell(indCode).toString();
             String weight = (indWeight != -1) ? fileRow.getCell(indWeight).toString() : "";
             boolean packed = !weight.equals("");
-            Sample sample = new Sample(code, storage, rack, box, row, column);
-            sample.setWeight(weight);
+            Sample sample = new Sample(code, weight, storage, rack, box, row, column);
             sample.setPacked(packed);
             samples.addElement(sample);
         }
+
         try {
             workbook.close();
         } catch (IOException e) {
             log.log(Level.WARNING, "Ошибка импорта: невозможно закрыть файл. ");
         }
         convertToMap();
+        fireEvent(this, EVENT_SAMPLE_ADDED, samples.getSize() - 1);
         log.info("Список успешно загружен. ");
     }
 
@@ -442,6 +450,7 @@ public class Shipment {
 
         Workbook workbook;
         try {
+            // set true if .XLSX
             workbook = WorkbookFactory.create(false);
         } catch (IOException e) {
             log.log(Level.WARNING, "Ошибка экспорта: не удалось создать файл. ");

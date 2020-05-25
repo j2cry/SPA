@@ -19,7 +19,8 @@ public class MapTable extends JTable {
     private final WordWrapCellRenderer cellRenderer;
     private int[] lines;
 
-    private Color bgPacked = new Color(20, 255, 50, 150);
+    private Color bgPacked = new Color(0, 255, 0, 150);
+    private Color bgNotPacked = new Color(255, 0, 0, 150);
 
     public MapTable(){
         this.getTableHeader().setReorderingAllowed(false);
@@ -60,8 +61,12 @@ public class MapTable extends JTable {
         if (!this.isVisible()) this.setVisible(true);
     }
 
-    public void setPackedColor(Color bgPacked) {
+    public void setPackedBackground(Color bgPacked) {
         this.bgPacked = bgPacked;
+    }
+
+    public void setNotPackedBackground(Color bgNotPacked) {
+        this.bgNotPacked = bgNotPacked;
     }
 
 
@@ -82,7 +87,7 @@ public class MapTable extends JTable {
             this.setText(val.getPacked() ? val.get(Sample.SAMPLE_CODE | Sample.SAMPLE_WEIGHT) : val.get(Sample.SAMPLE_CODE));
             this.setFont(table.getFont());
             // drawing selection
-            setBackground(isSelected ? table.getSelectionBackground() : val.getPacked() ? bgPacked : table.getBackground());
+            setBackground(isSelected ? table.getSelectionBackground() : val.getPacked() ? bgPacked : bgNotPacked);
 
             if (lines.length == 0) return null;
             // calculation of the required number of lines
