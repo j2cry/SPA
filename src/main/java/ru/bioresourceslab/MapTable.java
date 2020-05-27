@@ -35,7 +35,15 @@ public class MapTable extends JTable {
         for (int i = 1; i < getColumnCount(); i++) {
             this.getTableHeader().getColumnModel().getColumn(i).setCellRenderer(headerRenderer);
         }
+
+        this.setDoubleBuffered(true);
         cellRenderer = new WordWrapCellRenderer();
+    }
+
+    @Override
+    public void setFont(Font font) {
+        super.setFont(font);
+        this.setRowHeight(this.getFontMetrics(font).getHeight());
     }
 
     @Override
@@ -98,7 +106,8 @@ public class MapTable extends JTable {
 
             // finding the greatest value and set it as row height
             int maxLines = Arrays.stream(lines).max().orElse(0);
-            table.setRowHeight(row, this.getFontMetrics(getFont()).getHeight() * maxLines + 2);
+            table.setRowHeight(row, table.getRowHeight() * maxLines);
+//            table.setRowHeight(row, this.getFontMetrics(getFont()).getHeight() * maxLines);
 
             return this;
         }

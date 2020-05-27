@@ -74,6 +74,7 @@ public class EditSampleUI extends JDialog {
             setVisible(false);
             dispose();
         });
+        inputArea.requestFocus();
     }
 
     public boolean showModal() {

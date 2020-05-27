@@ -6,6 +6,7 @@ import com.intellij.uiDesigner.core.Spacer;
 import edu.cmu.sphinx.api.Configuration;
 import edu.cmu.sphinx.api.LiveSpeechRecognizer;
 import org.intellij.lang.annotations.MagicConstant;
+import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.ListDataEvent;
@@ -20,6 +21,8 @@ import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import static ru.bioresourceslab.Sample.SAMPLE_CODE;
 
 public class AppUI extends JFrame {
     private JPanel mainPanel;
@@ -60,6 +63,8 @@ public class AppUI extends JFrame {
 
     Configuration configuration;
     LiveSpeechRecognizer recognizer;
+    double rangeLower;
+    double rangeUpper;
 
     private Shipment shipment;
 
@@ -81,6 +86,7 @@ public class AppUI extends JFrame {
         ComponentLogHandler logHandler = new ComponentLogHandler();
         logHandler.setComponent(statusBox);
         log.addHandler(logHandler);
+        log.setLevel(Level.FINE);
 
         // adding autosave list on exit
         this.addWindowListener(new WindowAdapter() {
@@ -106,7 +112,7 @@ public class AppUI extends JFrame {
             public void contentsChanged(ListDataEvent e) {
             }
         });//*/
-        log.info("Загрузка параметров...");
+        log.fine("Загрузка параметров...");
 
         // loading icon
         Image titleIcon = Toolkit.getDefaultToolkit().createImage(getClass().getClassLoader().getResource("title.png"));
@@ -132,10 +138,10 @@ public class AppUI extends JFrame {
         try {
             recognizer = new LiveSpeechRecognizer(configuration);
         } catch (Exception ex) {
-            log.log(Level.SEVERE, "Ошибка распознавания: распознаватель не инициализирован! ");
+            log.severe("Ошибка распознавания: распознаватель не инициализирован!");
             return;
         }
-        log.info("Распознаватель инициализирован.");
+        log.fine("Распознаватель инициализирован.");
 
 // initialize Shipment object
         shipment = new Shipment();
@@ -150,14 +156,14 @@ public class AppUI extends JFrame {
             File settingsFile = new File(currentPath + "\\" + settingsFileName);
             projectProperties = new FileInputStream(settingsFile);
         } catch (FileNotFoundException e) {
-            log.log(Level.WARNING, "Ошибка загрузки параметров: файл не найден. Загружены параметры умолчанию. ");
+            log.config("Ошибка загрузки параметров: файл не найден. Загружены параметры умолчанию.");
             projectProperties = this.getClass().getClassLoader().getResourceAsStream(settingsFileName);
         }
         try {
             assert projectProperties != null;
             properties.load(new InputStreamReader(projectProperties, StandardCharsets.UTF_8));
         } catch (IOException e) {
-            log.log(Level.SEVERE, "Ошибка загрузки параметров. Обратитесь к разработчику. ");
+            log.severe("Критическая ошибка загрузки параметров. Обратитесь к разработчику. ");
             return;
         }
 
@@ -203,8 +209,8 @@ public class AppUI extends JFrame {
         shipment.setIdentifiers(fIDs);
 
         // loading weight range
-        double rangeLower = parseNumDef(properties.getProperty("range.lower"), 0.0);
-        double rangeUpper = parseNumDef(properties.getProperty("range.upper"), 1.5);
+        rangeLower = parseNumDef(properties.getProperty("range.lower"), 0.0);
+        rangeUpper = parseNumDef(properties.getProperty("range.upper"), 1.5);
 
         // loading parameters
         boolean autoSelect = properties.getProperty("autoselect").equals("true");
@@ -246,13 +252,16 @@ public class AppUI extends JFrame {
                     Sample sample = (value instanceof Sample) ? (Sample) value : null;
                     if (sample == null) return null;
 
-                    JCheckBox listItem = new JCheckBox(sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+                    JCheckBox listItem = new JCheckBox(sample.get(SAMPLE_CODE | Sample.SAMPLE_LOCATION));
                     listItem.setSelected(sample.getPacked());
                     listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
                     return listItem;
                 }
             });
-            // TODO: popup menu or in-list drag&drop?
+            // TODO: drag&drop moving!!
+
+            // list selection listener for map auto refreshing
+//            samplesList.addListSelectionListener(e -> refreshUI(UI_SAMPLE_INFO | UI_SELECTION));
 
             // list mouse adapter
             MouseAdapter listMouseAdapter = new MouseAdapter() {
@@ -277,7 +286,10 @@ public class AppUI extends JFrame {
                 @Override
                 public void mouseMoved(MouseEvent e) {
                     super.mouseMoved(e);
-                    if (autoSelect) samplesList.setSelectedIndex(samplesList.locationToIndex(e.getPoint()));
+                    if (autoSelect) {
+                        samplesList.setSelectedIndex(samplesList.locationToIndex(e.getPoint()));
+                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION);
+                    }
                 }
 
                 @Override
@@ -285,6 +297,7 @@ public class AppUI extends JFrame {
                     super.mouseWheelMoved(e);
 //                    listScroll
 //                    samplesList.setSelectedIndex(samplesList.locationToIndex(e.getPoint()));
+//                    refreshUI(UI_SAMPLE_INFO | UI_SELECTION);
                 }
             };
             samplesList.addMouseListener(listMouseAdapter);
@@ -293,75 +306,85 @@ public class AppUI extends JFrame {
 //            samplesList.addMouseWheelListener(listMouseAdapter);
         }
 
-// initializing addSampleButton
+        // sample add
         sampleAddButton.addActionListener(e -> {
             EditSampleUI addUI = new EditSampleUI(this, true, false);
             if (addUI.showModal()) {
                 ArrayList<Sample> list = addUI.getData();
                 Collections.reverse(list);
                 // set index to add/insert
-                int index;
-                if ((addUI.isAdding()) || (shipment.getSamplesCount() == 0))    // if add to end or is the first adding
+                int index = shipment.getSamplesCount();
+                if (addUI.isAdding()) {
                     index = shipment.getSamplesCount();
-                else
+                } else {
                     index = addUI.insBeforeSelection() ? samplesList.getSelectedIndex() : samplesList.getSelectedIndex() + 1;
-                for (Sample sample : list) {
-                    shipment.addSample(sample, index);
                 }
+                shipment.addSamples(list, index);
             } // end if
         });
 
-// initializing delSampleButton
+        // sample delete
         sampleDeleteButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
             shipment.removeSample(index);
         });
 
+        // sample edit
         sampleEditButton.addActionListener(e -> {
             EditSampleUI editUI = new EditSampleUI(this, true, true);
             Sample sample = shipment.getSample(samplesList.getSelectedIndex());
             if (sample == null) return;
-            editUI.setData(sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+            editUI.setData(sample.get(SAMPLE_CODE | Sample.SAMPLE_LOCATION));
             if (editUI.showModal()) {
                 shipment.setSample(samplesList.getSelectedIndex(), editUI.getData().get(0));
             }
         });
 
-// initializing moveUpButton
+        // sample move up by 1
         sampleMoveUpButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
             shipment.moveSample(index, index - 1);
         });
 
-// initializing moveDownButton
+        // sample move down by 1
         sampleMoveDownButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
             shipment.moveSample(index, index + 1);
         });
 
-// initializing loadListButton
+        // load list
         loadListButton.addActionListener(e -> {
             // Reminder msg
             JOptionPane.showMessageDialog(this, "Проследите, чтобы случай не разбивался по разным коробкам!", "Уведомление", JOptionPane.INFORMATION_MESSAGE);
             shipment.importList();
         });
 
-// initializing saveMapButton
+        // save map to file
         saveMapButton.addActionListener(e -> {
             shipment.setNumber(shipmentNumberField.getText());
             shipment.saveMapToFile();
         });
 
+        // start recognizer
         startButton.addActionListener(e -> {
-//            startWork();
+            startWork();
         });
 
-// initializing debugButton
+        // debug button
         debugButton.addActionListener(e -> {
+            // up when SHIFT pressed
+            boolean moveDown = (e.getModifiers() & ActionEvent.SHIFT_MASK) == 0;
+            // don't bypass when ALT pressed
+            boolean bypassPacked = (e.getModifiers() & ActionEvent.ALT_MASK) == 0;
+            // continue on end when CTRL pressed
+            boolean continueOnEnd = (e.getModifiers() & ActionEvent.CTRL_MASK) != 0;
+            String msg = "" + itemSelect(moveDown, bypassPacked, continueOnEnd);
+            log.info(msg);
+//            itemSelect(false, true, true);
             // debug action
             debugAction();
         });
-        log.info("Готов к работе.");
+        log.fine("Готов к работе.");
     }
 
 
@@ -370,6 +393,7 @@ public class AppUI extends JFrame {
         try {
             return Integer.parseInt(source);
         } catch (NumberFormatException e) {
+            log.config("Ошибка чтения параметров: недопустимый параметр int.");
             return defaultValue;
         }
     }
@@ -378,11 +402,12 @@ public class AppUI extends JFrame {
         try {
             return Double.parseDouble(source);
         } catch (NumberFormatException e) {
+            log.config("Ошибка чтения параметров: недопустимый параметр double.");
             return defaultValue;
         }
     }
 
-    private Font parseFont(Properties p, String nameID, String styleID, String sizeID) {
+    private @NotNull Font parseFont(@NotNull Properties p, String nameID, String styleID, String sizeID) {
         String fName = p.getProperty(nameID);
         int fStyle = parseNumDef(p.getProperty(styleID), Font.PLAIN);
         int fSize = parseNumDef(p.getProperty(sizeID), 10);
@@ -406,7 +431,7 @@ public class AppUI extends JFrame {
             try {
                 cl[i] = Integer.parseInt(color.substring(i * 2, i * 2 + 2), 16);
             } catch (NumberFormatException e) {
-                log.log(Level.WARNING, "Ошибка чтения параметров: недопустимый параметр цвета.");
+                log.config("Ошибка чтения параметров: недопустимый параметр цвета.");
                 return defColor;
             }
         }
@@ -418,11 +443,12 @@ public class AppUI extends JFrame {
         if (shipment.getSamplesCount() == 0) return; // no refresh if list is empty
         if ((index >= shipment.getSamplesCount()) || (index < 0)) index = 0;  // if wrong index
 
+//        int index = samplesList.isSelectionEmpty() ? 0 : samplesList.getSelectedIndex();
         // refresh infoLabels
         if ((flags & UI_SAMPLE_INFO) != 0) {
             Sample sample = shipment.getSample(index);
             if (sample != null) {
-                currentSampleLabel.setText(sample.get(Sample.SAMPLE_CODE));
+                currentSampleLabel.setText(sample.get(SAMPLE_CODE));
                 fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
                 // TODO: сделать вычисление и отображение toPos
 //                toPosLabel.setText();
@@ -434,6 +460,7 @@ public class AppUI extends JFrame {
         }
         // refresh selection
         if ((flags & UI_SELECTION) != 0) {
+//            assert samplesList.getSelectedIndex() != 0;
             samplesList.setSelectedIndex(index);
             mapTable.changeSelection(shipment.translate(index).y, shipment.translate(index).x, false, false);
         }
@@ -448,60 +475,42 @@ public class AppUI extends JFrame {
     }
 
     // select next/previous (unpacked) sample in the list and return true, if the list is end may return to beginning
-    private boolean listSelect(boolean moveDown, boolean unpackedOnly, boolean continueWhenEnd) {
-        int samplesCount = shipment.getSamplesCount();
+    private boolean itemSelect(boolean moveDown, boolean bypassPacked, boolean continueOnEnd) {
         int index = samplesList.getSelectedIndex();
-        if (samplesCount == 0) {
-            return false;
-        }
+        int count = shipment.getSamplesCount();
+        for (int i = 0; i < count; i++) {
+            // refresh index
+            index = moveDown ? ++index : --index;
+            // проверка на допустимость индекса
+            if (!continueOnEnd && ((index >= count) || (index < 0))) return false;
+            if (index < 0)
+                index = count - 1;
+            if (index >= count)
+                index = 0;
 
-        int limit;
-        int nextIndex;
-
-        if (moveDown) {
-            limit = continueWhenEnd ? samplesCount - 1 : samplesCount - index - 1;
-            nextIndex = index + 1;
-        } else {
-            limit = continueWhenEnd ? samplesCount - 1 : index;
-            nextIndex = index - 1;
-        }
-
-        int iter = 0;
-        while (iter++ != limit) {
-            // reset index when END of list reached
-            if (moveDown & (nextIndex > samplesCount - 1)) {
-                nextIndex = 0;
-            }
-            // reset index when BEGIN of list reached
-            if (!moveDown & (nextIndex < 0)) {
-                nextIndex = samplesCount - 1;
-            }
-            if (!unpackedOnly || !shipment.getSample(nextIndex).getPacked()) {
-                samplesList.setSelectedIndex(nextIndex);
+//          Another way to check NotNull sample: without isSamplePacked method
+//            Sample sample = shipment.getSample(index);
+//            if (!bypassPacked || ((sample != null) && !sample.getPacked())) {
+            if (!bypassPacked || !shipment.isSamplePacked(index)) {
+                refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
                 return true;
             }
-            nextIndex = moveDown ? ++nextIndex : --nextIndex;
         }
         return false;
     }
 
     private void startWork() {
-/*        int samplesCount = shipment.getSamplesCount();
+        int samplesCount = shipment.getSamplesCount();
         // check if list is empty
         if (samplesCount == 0) {
-            addLog("Ошибка: список пуст!");
+            log.info("Невозможно начать работу: список пуст!");
             return;
         }
         // check if list is already done
-        for (int index = 0; index < samplesCount; index++) {
-            if (shipment.getSample(index).getPacked()) {
-                if (index == samplesCount - 1) {
-                    addLog("Ошибка: все образцы уже обработаны.");
-                    return;
-                }
-                continue;
-            }
-            break;
+        // Здесь можно использовать результат метода itemSelection. FALSE, если следующего элемента нет
+        if (!itemSelect(true, true, true)) {
+            log.info("Все образцы уже обработаны.");
+            return;
         }
 
         // recognizer inner-class thread
@@ -520,47 +529,49 @@ public class AppUI extends JFrame {
                 recognizer.startRecognition(true);
                 while (!isInterrupted()) {
                     String utterance = recognizer.getResult().getHypothesis();
-                    Sample sample = shipment.getSample(samplesList.getSelectedIndex());
+
                     int index = samplesList.getSelectedIndex();
+                    Sample sample = shipment.getSample(index);
+                    if (sample == null) continue;
 
                     // if weight was recognized, setWeight and go next sample
                     if (interpretWeight(utterance)) {
                         sample.setWeight(result);
                         // output result in status-bar
-                        addLog(sample.getCode() + " вес " + sample.getWeight());
+                        log.info(sample.get(SAMPLE_CODE | Sample.SAMPLE_WEIGHT));
 
-                        if (!sample.getPacked()) listSwitchSampleCheck(samplesList.getSelectedIndex());
-                        endOfSamples = !listSelect(true, true, true);
-                        // selecting next cell in map TODO: something another way
-                        mapTable.changeSelection(((MapTableModel) mapTable.getModel()).getSampleRow(index), ((MapTableModel) mapTable.getModel()).getSampleColumn(index), true, false);
+                        if (!sample.getPacked())
+                            shipment.revertSampleStatus(samplesList.getSelectedIndex());
+                        endOfSamples = !itemSelect(true, true, true);
                     } else {
                         // analyze commands
                         switch (result) {
                             case COMMAND_END: {
                                 interrupt();
-                                addLog("Команда: завершить работу");
+                                log.info("Команда: завершить работу");
                                 break;
                             }
                             case COMMAND_NEXT: {
-                                listSelect(true, false, true);
-                                addLog("Команда: дальше");
+                                itemSelect(true, false, true);
+                                log.info("Команда: дальше");
                                 break;
                             }
                             case COMMAND_PREVIOUS: {
-                                listSelect(false, false, true);
-                                addLog("Команда: назад");
+                                itemSelect(false, false, true);
+                                log.info("Команда: назад");
                                 break;
                             }
                             default: {
                                 if (inDeveloping) {
-                                    addLog(result);
+                                    log.config(result);
                                 } else {
-                                    addLog("Не распознано. Повторите.");
+                                    log.config("Не распознано. Повторите.");
                                 }
                             }
                         }
                     }
                     if (endOfSamples) {
+                        log.fine("Работа закончена: список обработан.");
                         interrupt();
                     }
                 }
@@ -569,7 +580,7 @@ public class AppUI extends JFrame {
                 startButton.setEnabled(true); // TODO: убрать после наладки остановки кнопкой;
             }
 
-            private boolean interpretWeight(String source) {       // interpret the result and set it to 'result'. Returns TRUE if is a weight
+            private boolean interpretWeight(@NotNull String source) {       // interpret the result and set it to 'result'. Returns TRUE if is a weight
                 String s = source.replaceFirst(" ", ".");   // replace first 'space' to 'dot'
                 String res = s.replace(" ", "");    // delete all spaces from string
 
@@ -595,14 +606,14 @@ public class AppUI extends JFrame {
         // starting thread
         RecThread rec = new RecThread();
         rec.setName("SPA Recognizer thread");
-        addLog("Запуск потока распознавания");
+        log.fine("Запуск потока распознавания");
         rec.start();//*/
     }
 
     private void debugAction() {
 //        String msg = Location.getLocationFromStr("1.2.3.4.5", Location.LOC_BOX);
-        String msg = String.valueOf(samplesList.getModel().getSize());
-        log.info(msg);
+//        String msg = String.valueOf(samplesList.getModel().getSize());
+//        log.info(msg);
     }
 
     {

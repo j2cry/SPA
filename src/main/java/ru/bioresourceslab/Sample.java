@@ -18,7 +18,7 @@ public final class Sample {
     public static final String SPACER = " ";
 
     private final String code;
-    private final String weight;
+    private String weight;
     private boolean packed = false;
     private final String storage, rack, box, row, column;
 
@@ -35,6 +35,10 @@ public final class Sample {
     // SETTERS
     public void setPacked(boolean packed) {
         this.packed = packed;
+    }
+
+    public void setWeight(String weight) {
+        this.weight = weight;
     }
 
     // GETTERS

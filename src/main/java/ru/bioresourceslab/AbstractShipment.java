@@ -13,12 +13,12 @@ public abstract class AbstractShipment {
     /** add a listener */
     public void addListener(ShipmentListener listener) {
         listenerList.add(ShipmentListener.class, listener);
-    };
+    }
 
     /** remove a listener */
     public void removeListener(ShipmentListener listener) {
         listenerList.remove(ShipmentListener.class, listener);
-    };
+    }
 
 
     /** Universal method for calling event handlers
@@ -33,7 +33,7 @@ public abstract class AbstractShipment {
         for (int i = listeners.length - 2; i >= 0; i -= 2) {
             if (listeners[i] == ShipmentListener.class) {
                 if (e == null) {
-                    e = new ShipmentEvent(source, typeOfEvent, target);
+                    e = new ShipmentEvent(source, target);
                 }
                 ((ShipmentListener)listeners[i+1]).defaultAction(e);
                 switch (typeOfEvent) {

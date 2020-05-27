@@ -12,6 +12,7 @@ import java.awt.*;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -89,7 +90,7 @@ public class Shipment extends AbstractShipment {
         return boxOptions.getBoxesCount(samples.size());
     }
 
-    // clear list and table
+    /** Clear list and table; set shipment number to '0' */
     public void clear() {
         samples.clear();
         map.setRowCount(0);
@@ -98,16 +99,20 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_REMOVED, -1);
     }
 
-    // add new element to list
-    public void addSample(Sample newSample, int index) {
-        samples.add(index, newSample);
-        convertToMap();
-        fireEvent(this, EVENT_SAMPLE_ADDED, samples.size() - 1);
-    }
+//    /** Insert sample {@param newSample} at {@param index} */
+//    public void addSample(Sample newSample, int index) {
+//        samples.add(index, newSample);
+//        convertToMap();
+//        fireEvent(this, EVENT_SAMPLE_ADDED, index);
+//    }
 
-    // add new element to list
-    public void addSample(Sample newSample) {
-        addSample(newSample, samples.size());
+    /** Insert array of samples {@param newSamples} at {@param index} */
+    public void addSamples(@NotNull ArrayList<Sample> newSamples, int index) {
+        for (Sample sample : newSamples) {
+            samples.add(index, sample);
+        }
+        convertToMap();
+        fireEvent(this, EVENT_SAMPLE_ADDED, index);
     }
 
     // remove element from list at [index]
@@ -120,7 +125,7 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_REMOVED, index);
     }
 
-    // move element at [index] to [destination]
+    /** Move element from {@param index} to {@param destination} */
     public void moveSample(int index, int destination) {
         if ((destination >= samples.size()) || (destination < 0)) return;
         if ((index >= samples.size()) || (index < 0)) return;
@@ -135,14 +140,21 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_MOVED, destination);
     }
 
-    // get the sample by index
+    /** Get sample by index. Returns NULL if index is out of range or sample was set to NULL */
     @Nullable
     public Sample getSample(int index) {
         if ((index >= samples.size()) || (index < 0)) return null;
         return samples.get(index);
     }
 
-    // replace all fields in element at [index] with [newSample]
+    /** Return packed status of sample by index.
+     * If index is out of range, returns FALSE. */
+    public boolean isSamplePacked (int index) {
+        if ((index >= samples.size()) || (index < 0)) return false;
+        return samples.get(index).getPacked();
+    }
+
+    /** Replace element at {@param index} with {@param newSample} */
     public void setSample(int index, Sample newSample) {
         if ((index >= samples.size()) || (index < 0)) return;
         samples.set(index, newSample);
