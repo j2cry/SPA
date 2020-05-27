@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'ru.bioresourceslab'
-version '0.10.A2.201'
+version '0.10.A2.215'
 
 sourceCompatibility = 1.9
 targetCompatibility = 1.9
@@ -38,8 +38,8 @@ repositories {
 }
 
 dependencies {
-    compile 'com.miglayout:miglayout-swing:5.2'
-    compile 'com.miglayout:miglayout-core:5.2'
+//    compile 'com.miglayout:miglayout-swing:5.2'
+//    compile 'com.miglayout:miglayout-core:5.2'
     compile 'com.intellij:forms_rt:7.0.3'
     compile 'org.apache.poi:poi:4.1.2'
     compile group: 'edu.cmu.sphinx', name: 'sphinx4-core', version:'5prealpha-SNAPSHOT'

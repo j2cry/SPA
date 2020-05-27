@@ -33,7 +33,7 @@ public class Shipment extends AbstractShipment {
     private Sample identifiers;                 // field identifiers (excel column names)
     private final Logger log = Logger.getLogger("SPA Logger");
     private final BoxOptions boxOptions;              // box options container
-    private final DefaultListModel<Sample> samples;   // list of samples
+    private final DefaultListModel<Sample> samples;          // list of samples
     private final DefaultTableModel map;              // table with map
 
     // export params
@@ -77,18 +77,16 @@ public class Shipment extends AbstractShipment {
         if (cellWidth > 0) this.cellWidth = cellWidth;
     }
 
-    @Deprecated
-    public DefaultListModel<Sample> getListModel() {
+    public ListModel<Sample> getListModel() {
         return samples;
     }
 
-    @Deprecated
     public DefaultTableModel getMapModel() {
         return map;
     }
 
     public int getBoxesCount() {
-        return boxOptions.getBoxesCount(samples.getSize());
+        return boxOptions.getBoxesCount(samples.size());
     }
 
     // clear list and table
@@ -101,17 +99,22 @@ public class Shipment extends AbstractShipment {
     }
 
     // add new element to list
-    public void addSample(Sample newSample) {
-        samples.addElement(newSample);
+    public void addSample(Sample newSample, int index) {
+        samples.add(index, newSample);
         convertToMap();
-        fireEvent(this, EVENT_SAMPLE_ADDED, samples.getSize() - 1);
+        fireEvent(this, EVENT_SAMPLE_ADDED, samples.size() - 1);
+    }
+
+    // add new element to list
+    public void addSample(Sample newSample) {
+        addSample(newSample, samples.size());
     }
 
     // remove element from list at [index]
     public void removeSample(int index) {
 //      also can use if JavaSource 1.9+
 //        Objects.checkIndex(index, samples.getSize());
-        if ((index >= samples.getSize()) || (index < 0)) return;
+        if ((index >= samples.size()) || (index < 0)) return;
         samples.remove(index);
         convertToMap();
         fireEvent(this, EVENT_SAMPLE_REMOVED, index);
@@ -119,8 +122,8 @@ public class Shipment extends AbstractShipment {
 
     // move element at [index] to [destination]
     public void moveSample(int index, int destination) {
-        if ((destination >= samples.getSize()) || (destination < 0)) return;
-        if ((index >= samples.getSize()) || (index < 0)) return;
+        if ((destination >= samples.size()) || (destination < 0)) return;
+        if ((index >= samples.size()) || (index < 0)) return;
 
         Sample sample = samples.get(index);
         if (index < destination) {
@@ -131,6 +134,7 @@ public class Shipment extends AbstractShipment {
             samples.add(destination, sample);
             samples.remove(index + 1);
         }
+
         convertToMap();
         fireEvent(this, EVENT_SAMPLE_MOVED, destination);
     }
@@ -138,14 +142,14 @@ public class Shipment extends AbstractShipment {
     // get the sample by index
     @Nullable
     public Sample getSample(int index) {
-        if ((index >= samples.getSize()) || (index < 0)) return null;
+        if ((index >= samples.size()) || (index < 0)) return null;
         return samples.get(index);
     }
 
     // replace all fields in element at [index] with [newSample]
     public void setSample(int index, Sample newSample) {
-        if ((index >= samples.getSize()) || (index < 0)) return;
-        samples.setElementAt(newSample, index);
+        if ((index >= samples.size()) || (index < 0)) return;
+        samples.set(index, newSample);
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
@@ -190,28 +194,32 @@ public class Shipment extends AbstractShipment {
 
     // translates to Table position from index
     public Point translate(int index) {
-        if ((index >= samples.getSize()) || (index < 0)) return new Point(-1, -1);
+        if ((index >= samples.size()) || (index < 0)) return new Point(-1, -1);
         return boxOptions.translate(index);
     }
 
     public void revertSampleStatus(int index) {
-        if ((index >= samples.getSize()) & (index <0)) return;
+        if ((index >= samples.size()) || (index < 0)) return;
         samples.get(index).setPacked(!samples.get(index).getPacked());
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
     public int getSamplesCount() {
-        return samples.getSize();
+        return samples.size();
     }
 
     // convert current list state to map using [BoxOptions]
     public void convertToMap() {
         map.setRowCount(0);
-        map.setRowCount(boxOptions.translate(samples.getSize() - 1).y + 1);
+        map.setRowCount(boxOptions.translate(samples.size() - 1).y + 1);
         map.setColumnCount(boxOptions.getColumnsCount());
-        for (int index = 0; index < samples.getSize(); index++) {
+        for (int index = 0; index < samples.size(); index++) {
             Point pos = boxOptions.translate(index);
             map.setValueAt(samples.get(index), pos.y, pos.x);
+//            if (samples.get(index).getPacked())
+//                map.setValueAt(samples.get(index).get(SAMPLE_CODE | SAMPLE_WEIGHT), pos.y, pos.x);
+//            else
+//                map.setValueAt(samples.get(index).get(SAMPLE_CODE), pos.y, pos.x);
         }
     }
 
@@ -298,13 +306,13 @@ public class Shipment extends AbstractShipment {
             log.log(Level.WARNING, "Ошибка импорта: невозможно закрыть файл. ");
         }
         convertToMap();
-        fireEvent(this, EVENT_SAMPLE_ADDED, samples.getSize() - 1);
+        fireEvent(this, EVENT_SAMPLE_ADDED, samples.size() - 1);
         log.info("Список успешно загружен. ");
     }
 
     // auto save current list state to .XLS file
     public void saveListToFile() {
-        if (samples.getSize() == 0) return;
+        if (samples.size() == 0) return;
 
         File file = new File("list_autosave.xls");
         Workbook workbook;
@@ -374,7 +382,7 @@ public class Shipment extends AbstractShipment {
         workbook.getSheetAt(0).setColumnWidth(5,  cellWidth * 256);
 
         // generating data
-        for (int i = 0; i < samples.getSize(); i++) {
+        for (int i = 0; i < samples.size(); i++) {
             dataRow = workbook.getSheetAt(0).createRow(i + 1);
             for (int column = 0; column < 7; column++) {
                 Cell cell = dataRow.createCell(column, CellType.STRING);
@@ -425,7 +433,7 @@ public class Shipment extends AbstractShipment {
 
     // TODO: не работает сохранение .XLSX
     public void saveMapToFile() {
-        if (samples.getSize() == 0) {
+        if (samples.size() == 0) {
             log.log(Level.WARNING, "Ошибка экспорта: нет данных в таблице! ");
             return;
         }

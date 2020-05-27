@@ -8,40 +8,50 @@ import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
+import java.util.logging.Logger;
 
 import static ru.bioresourceslab.Sample.DELIMITER;
 import static ru.bioresourceslab.Sample.SPACER;
 
 public class EditSampleUI extends JDialog {
     private final JTextComponent inputArea;
+    private JComboBox<String> insertTypeBox;
 
     private boolean succeed;
-//    final Logger log = Logger.getLogger("SPA Logger");
+
+    final Logger log = Logger.getLogger("SPA Logger");
 
 
     public EditSampleUI(Frame owner, boolean modal, boolean changeMode) {
         super(owner, modal);
         JPanel addPanel = new JPanel();
-        addPanel.setLayout(new GridLayoutManager(2, 2, new Insets(0, 0, 0, 0), -1, -1, true, false));
+        addPanel.setLayout(new GridLayoutManager(3, 2, new Insets(0, 0, 0, 0), -1, -1, true, false));
 
         if (changeMode) {
+            this.setTitle("Редактирование...");
             addPanel.setPreferredSize(new Dimension(200, 51));
             inputArea = new JTextField();
-            addPanel.add(inputArea, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
+            addPanel.add(inputArea, new GridConstraints(1, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(150, -1), null, 0, false));
             this.setResizable(false);
         } else {
-            addPanel.setPreferredSize(new Dimension(200, 120));
+            this.setTitle("Добавление в список...");
+            addPanel.setPreferredSize(new Dimension(248, 120));
+            String[] insertNames = {"Добавить в конец", "Вставить перед выделенным", "Вставить после выделенного"};
+            insertTypeBox = new JComboBox<>(insertNames);
+            insertTypeBox.setEditable(false);
+            insertTypeBox.setSelectedIndex(2);
+            addPanel.add(insertTypeBox, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null));
             final JScrollPane scrollPane1 = new JScrollPane();
-            addPanel.add(scrollPane1, new GridConstraints(0, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
+            addPanel.add(scrollPane1, new GridConstraints(1, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, null, null, 0, false));
             inputArea = new JTextArea();
             scrollPane1.setViewportView(inputArea);
         }
         JButton okButton = new JButton();
-        okButton.setText("OK");
-        addPanel.add(okButton, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        okButton.setText("ОК");
+        addPanel.add(okButton, new GridConstraints(2, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         JButton cancelButton = new JButton();
-        cancelButton.setText("Cancel");
-        addPanel.add(cancelButton, new GridConstraints(1, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        cancelButton.setText("Отменить");
+        addPanel.add(cancelButton, new GridConstraints(2, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
 
         this.setContentPane(addPanel);
         this.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
@@ -52,7 +62,6 @@ public class EditSampleUI extends JDialog {
         // loading icon
         Image titleIcon = Toolkit.getDefaultToolkit().createImage(getClass().getClassLoader().getResource("addSample16.png"));
         setIconImage(titleIcon);
-        this.setTitle("Добавление в список...");
         succeed = false;
 
         okButton.addActionListener(e -> {
@@ -66,6 +75,7 @@ public class EditSampleUI extends JDialog {
             setVisible(false);
             dispose();
         });
+        log.info("" + addPanel.getWidth());
 
     }
 
@@ -101,6 +111,16 @@ public class EditSampleUI extends JDialog {
 
     public void setData(String value) {
         inputArea.setText(value);
+    }
+
+    // 0 = ADD_TO_END
+    public boolean isAdding() {
+        return insertTypeBox.getSelectedIndex() == 0;
+    }
+
+    // 1 = INSERT_BEFORE_SELECTION; 2 = INSERT_AFTER_SELECTION, but it doesn't matter
+    public boolean insBeforeSelection() {
+        return insertTypeBox.getSelectedIndex() == 1;
     }
 
 }

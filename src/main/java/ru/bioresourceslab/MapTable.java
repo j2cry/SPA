@@ -40,7 +40,6 @@ public class MapTable extends JTable {
 
     @Override
     public boolean isCellEditable(int row, int column) {
-//        return super.isCellEditable(row, column);
         return false;
     }
 
@@ -81,14 +80,15 @@ public class MapTable extends JTable {
         }
 
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
-            if (value == null) return null;     // насколько это правильно??
-            Sample val = (Sample) value;
+            Sample sample = (value instanceof Sample) ? (Sample) value : null;
+            if (sample == null) return null;
 
-            this.setText(val.getPacked() ? val.get(Sample.SAMPLE_CODE | Sample.SAMPLE_WEIGHT) : val.get(Sample.SAMPLE_CODE));
             this.setFont(table.getFont());
+            this.setText(sample.getPacked() ? sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_WEIGHT) : sample.get(Sample.SAMPLE_CODE));
             // drawing selection
-            setBackground(isSelected ? table.getSelectionBackground() : val.getPacked() ? bgPacked : bgNotPacked);
+            setBackground(isSelected ? table.getSelectionBackground() : sample.getPacked() ? bgPacked : bgNotPacked);
 
+            // auto height
             if (lines.length == 0) return null;
             // calculation of the required number of lines
             View view = this.getUI().getRootView(this).getView(0);

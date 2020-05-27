@@ -15,6 +15,8 @@ import java.awt.event.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -64,7 +66,6 @@ public class AppUI extends JFrame {
     // debug variables
     final Logger log = Logger.getLogger("SPA Logger");
     boolean inDeveloping = false;
-    private static int calls = 0;
 
     public AppUI() {
         super();
@@ -231,19 +232,34 @@ public class AppUI extends JFrame {
             }
         });
 
-// initializing mapTable look&feel
+// initializing models
         mapTable.setModel(shipment.getMapModel());
+        samplesList.setModel(shipment.getListModel());
 
-// initializing samplesList look&feel
+// initializing samplesList
         {
-            samplesList.setModel(shipment.getListModel());
+            // samplesList look&feel
             samplesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+            samplesList.setCellRenderer(new DefaultListCellRenderer() {
+                @Override
+                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                    Sample sample = (value instanceof Sample) ? (Sample) value : null;
+                    if (sample == null) return null;
+
+                    JCheckBox listItem = new JCheckBox(sample.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+                    listItem.setSelected(sample.getPacked());
+                    listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
+                    return listItem;
+                }
+            });
+            // TODO: popup menu or in-list drag&drop?
 
             // list mouse adapter
             MouseAdapter listMouseAdapter = new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     super.mouseClicked(e);
+
                     int index = samplesList.locationToIndex(e.getPoint());
                     // select the sample under the cursor and invert packed-flag on right-click
                     if (SwingUtilities.isLeftMouseButton(e)) {
@@ -275,29 +291,24 @@ public class AppUI extends JFrame {
             samplesList.addMouseMotionListener(listMouseAdapter);
             // TODO: scrolling&selecting on mouse wheel
 //            samplesList.addMouseWheelListener(listMouseAdapter);
-
-            // drawing samplesList
-            samplesList.setCellRenderer(new DefaultListCellRenderer() {
-                @Override
-                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                    Sample item = (Sample) value;
-                    JCheckBox listItem = new JCheckBox(item.get(Sample.SAMPLE_CODE | Sample.SAMPLE_LOCATION));
-                    listItem.setSelected(item.getPacked());
-                    listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
-                    return listItem;
-                }
-            });
-            // TODO: popup menu or in-list drag&drop?
         }
 
 // initializing addSampleButton
         sampleAddButton.addActionListener(e -> {
             EditSampleUI addUI = new EditSampleUI(this, true, false);
             if (addUI.showModal()) {
-                for (Sample sample : addUI.getData()) {
-                    shipment.addSample(sample);
+                ArrayList<Sample> list = addUI.getData();
+                Collections.reverse(list);
+                // set index to add/insert
+                int index;
+                if ((addUI.isAdding()) || (shipment.getSamplesCount() == 0))    // if add to end or is the first adding
+                    index = shipment.getSamplesCount();
+                else
+                    index = addUI.insBeforeSelection() ? samplesList.getSelectedIndex() : samplesList.getSelectedIndex() + 1;
+                for (Sample sample : list) {
+                    shipment.addSample(sample, index);
                 }
-            }
+            } // end if
         });
 
 // initializing delSampleButton
@@ -314,7 +325,6 @@ public class AppUI extends JFrame {
             if (editUI.showModal()) {
                 shipment.setSample(samplesList.getSelectedIndex(), editUI.getData().get(0));
             }
-
         });
 
 // initializing moveUpButton
@@ -591,7 +601,7 @@ public class AppUI extends JFrame {
 
     private void debugAction() {
 //        String msg = Location.getLocationFromStr("1.2.3.4.5", Location.LOC_BOX);
-        String msg = String.valueOf(this.getWidth());
+        String msg = String.valueOf(samplesList.getModel().getSize());
         log.info(msg);
     }
 
@@ -748,17 +758,16 @@ public class AppUI extends JFrame {
         loadListButton.setIcon(new ImageIcon(getClass().getResource("/import16.png")));
         loadListButton.setText("");
         panel4.add(loadListButton, new GridConstraints(0, 0, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, new Dimension(48, -1), null, 0, false));
-        saveMapButton = new JButton();
-        saveMapButton.setIcon(new ImageIcon(getClass().getResource("/save16.png")));
-        saveMapButton.setLabel("");
-        saveMapButton.setText("");
-        panel4.add(saveMapButton, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         startButton = new JButton();
         startButton.setText("Начать работу");
         panel4.add(startButton, new GridConstraints(0, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         debugButton = new JButton();
         debugButton.setText("debug");
         panel4.add(debugButton, new GridConstraints(1, 2, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
+        saveMapButton = new JButton();
+        saveMapButton.setIcon(new ImageIcon(getClass().getResource("/save16.png")));
+        saveMapButton.setText("");
+        panel4.add(saveMapButton, new GridConstraints(0, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
     }
 
     /**
