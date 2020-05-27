@@ -126,16 +126,12 @@ public class Shipment extends AbstractShipment {
         if ((index >= samples.size()) || (index < 0)) return;
 
         Sample sample = samples.get(index);
-        if (index < destination) {
-            samples.add(destination + 1, sample);
-            samples.remove(index);
-        }
-        if (index > destination) {
-            samples.add(destination, sample);
-            samples.remove(index + 1);
-        }
+        Sample backup = samples.get(destination);
+        samples.set(destination, sample);
+        samples.set(index, backup);
 
-        convertToMap();
+        map.setValueAt(sample, translate(destination).y, translate(destination).x);
+        map.setValueAt(backup, translate(index).y, translate(index).x);
         fireEvent(this, EVENT_SAMPLE_MOVED, destination);
     }
 

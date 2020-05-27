@@ -8,7 +8,6 @@ import javax.swing.text.JTextComponent;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.StringTokenizer;
-import java.util.logging.Logger;
 
 import static ru.bioresourceslab.Sample.DELIMITER;
 import static ru.bioresourceslab.Sample.SPACER;
@@ -19,7 +18,7 @@ public class EditSampleUI extends JDialog {
 
     private boolean succeed;
 
-    final Logger log = Logger.getLogger("SPA Logger");
+//    final Logger log = Logger.getLogger("SPA Logger");
 
 
     public EditSampleUI(Frame owner, boolean modal, boolean changeMode) {
@@ -75,8 +74,6 @@ public class EditSampleUI extends JDialog {
             setVisible(false);
             dispose();
         });
-        log.info("" + addPanel.getWidth());
-
     }
 
     public boolean showModal() {
