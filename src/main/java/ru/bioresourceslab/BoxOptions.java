@@ -72,12 +72,19 @@ public class BoxOptions {
 
     // translate index to table position considering separator: X = column, Y = row
     public Point translate(int index) {
-
         Point result = new Point();
         // add +1 if the first row/col are the headers
         result.y = index / columns + separator * getBoxesCount(index, BX_FULL_ONLY);
         result.x = index % columns;
         return result;
+    }
+
+    // translate table position to index considering separator
+    public int translate(int row, int col) {
+//        int fullBoxesCount = row / (rows + separator);
+//        int fullRows = row - separator * fullBoxesCount;
+//        return fullRows * columns + col;
+        return (row - separator * row / (rows + separator)) * columns + col;
     }
 
 }

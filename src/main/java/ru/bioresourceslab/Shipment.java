@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
 import java.awt.Font;
 import java.awt.*;
 import java.io.File;
@@ -82,7 +83,7 @@ public class Shipment extends AbstractShipment {
         return samples;
     }
 
-    public DefaultTableModel getMapModel() {
+    public TableModel getMapModel() {
         return map;
     }
 
@@ -140,7 +141,8 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_MOVED, destination);
     }
 
-    /** Get sample by index. Returns NULL if index is out of range or sample was set to NULL */
+    /** Get sample by index.
+     * Returns 'null' if index is out of range or sample was set to 'null' */
     @Nullable
     public Sample getSample(int index) {
         if ((index >= samples.size()) || (index < 0)) return null;
@@ -200,12 +202,24 @@ public class Shipment extends AbstractShipment {
         }
     }//*/
 
-    // translates to Table position from index
+    /** Get position of sample with {@param index} in the table according to box options.
+     * Returns: Point.y = row;
+     *          Point.x = column */
     public Point translate(int index) {
         if ((index >= samples.size()) || (index < 0)) return new Point(-1, -1);
         return boxOptions.translate(index);
     }
 
+    /** Get index of sample with table position {@param row}, {@param column} according to box options.
+     * Returns: '-1': if row is out of range
+                '-2': if column is out of range */
+    public int translate(int row, int column) {
+        if ((row >= map.getRowCount()) || (row < 0)) return -1;
+        if ((column >= map.getColumnCount()) || (column < 0)) return -2;
+        return boxOptions.translate(row, column);
+    }
+
+    /** Reverse sample packed status */
     public void revertSampleStatus(int index) {
         if ((index >= samples.size()) || (index < 0)) return;
         samples.get(index).setPacked(!samples.get(index).getPacked());
@@ -216,7 +230,7 @@ public class Shipment extends AbstractShipment {
         return samples.size();
     }
 
-    // convert current list state to map using [BoxOptions]
+    /** Convert current list to table according to box options. */
     public void convertToMap() {
         map.setRowCount(0);
         map.setRowCount(boxOptions.translate(samples.size() - 1).y + 1);

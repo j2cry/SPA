@@ -242,8 +242,21 @@ public class AppUI extends JFrame {
         mapTable.setModel(shipment.getMapModel());
         samplesList.setModel(shipment.getListModel());
 
-// initializing samplesList
+// initializing renderers&listeners on Table&List
         {
+            // mapTable click listener
+            mapTable.addMouseListener(new MouseAdapter() {
+                @Override
+                public void mouseClicked(MouseEvent e) {
+//                    super.mouseClicked(e);
+                    int index = shipment.translate(mapTable.rowAtPoint(e.getPoint()), mapTable.columnAtPoint(e.getPoint()));
+                    if ((index >= shipment.getSamplesCount()) || (index < 0))
+                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, samplesList.getSelectedIndex());
+                    else
+                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
+                }
+            });
+
             // samplesList look&feel
             samplesList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             samplesList.setCellRenderer(new DefaultListCellRenderer() {
@@ -313,7 +326,7 @@ public class AppUI extends JFrame {
                 ArrayList<Sample> list = addUI.getData();
                 Collections.reverse(list);
                 // set index to add/insert
-                int index = shipment.getSamplesCount();
+                int index;
                 if (addUI.isAdding()) {
                     index = shipment.getSamplesCount();
                 } else {
@@ -366,9 +379,7 @@ public class AppUI extends JFrame {
         });
 
         // start recognizer
-        startButton.addActionListener(e -> {
-            startWork();
-        });
+        startButton.addActionListener(e -> startWork());
 
         // debug button
         debugButton.addActionListener(e -> {
