@@ -3,13 +3,13 @@ plugins {
 }
 
 group 'ru.bioresourceslab'
-version '0.10.A3.273'
+version '0.10.A3.274'
 
 //sourceCompatibility = 1.9
 //targetCompatibility = 1.9
 
-project.sourceSets.main.java.srcDir('src/main/java')
-project.sourceSets.main.resources.srcDir('src/main/resources')
+//project.sourceSets.main.java.srcDir('src/main/java')
+//project.sourceSets.main.resources.srcDir('src/main/resources')
 
 task settingsCopy(type: Copy) {
     from "$projectDir/src/main/resources/spa.properties"
@@ -17,6 +17,7 @@ task settingsCopy(type: Copy) {
 }
 
 task buildJar(type: Jar) {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 
     dependsOn(settingsCopy)
     manifest {
@@ -28,7 +29,7 @@ task buildJar(type: Jar) {
         options.compilerArgs << "-Xlint:unchecked"
         options.encoding("UTF-8")
     }
-    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    from { configurations.compileClasspath.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }
 
@@ -40,11 +41,11 @@ repositories {
 dependencies {
 //    compile 'com.miglayout:miglayout-swing:5.2'
 //    compile 'com.miglayout:miglayout-core:5.2'
-    compile 'com.intellij:forms_rt:7.0.3'
-    compile 'org.apache.poi:poi:4.1.2'
-    compile 'org.apache.poi:poi-ooxml:4.1.2'
-    compile group: 'edu.cmu.sphinx', name: 'sphinx4-core', version:'5prealpha-SNAPSHOT'
-    compile group: 'edu.cmu.sphinx', name: 'sphinx4-data', version:'5prealpha-SNAPSHOT'
-    testCompile group: 'junit', name: 'junit', version: '4.12'
+    implementation 'com.intellij:forms_rt:7.0.3'
+    implementation 'org.apache.poi:poi:4.1.2'
+    implementation 'org.apache.poi:poi-ooxml:4.1.2'
+    implementation group: 'edu.cmu.sphinx', name: 'sphinx4-core', version:'5prealpha-SNAPSHOT'
+    implementation group: 'edu.cmu.sphinx', name: 'sphinx4-data', version:'5prealpha-SNAPSHOT'
+    implementation group: 'junit', name: 'junit', version: '4.12'
     implementation 'org.jetbrains:annotations:15.0'
 }

@@ -495,6 +495,7 @@ public class AppUI extends JFrame {
         // refresh infoLabels
         if ((flags & UI_SAMPLE_INFO) != 0) {
             Sample sample = shipment.getSample(index);
+//            Sample lastSample = shipment.getEndCase(index);
             if (sample != null) {
                 currentSampleLabel.setText(sample.get(SAMPLE_CODE));
                 fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));

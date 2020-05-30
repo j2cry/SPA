@@ -34,7 +34,7 @@ public class Shipment extends AbstractShipment {
     private Sample identifiers;                 // field identifiers (excel column names)
     private final Logger log = Logger.getLogger("SPA Logger");
     private final BoxOptions boxOptions;              // box options container
-    private final DefaultListModel<Sample> samples;          // list of samples
+    private final DefaultListModel<Sample> samples;   // list of samples
     private final DefaultTableModel map;              // table with map
 
     // export params
@@ -188,7 +188,7 @@ public class Shipment extends AbstractShipment {
     /** Flag for {@code getNextIndex(...)} to skip samples checked as packed */
     public static final int NEXT_EVERY_ITEM = 1 << 2;
 
-    /** Returns the next sample index in the list starting with {@param index} and corresponding to {@param flags}
+    /** Return the next sample index in the list starting with {@param index} and corresponding to {@param flags}
      * If there is no samples that meet the requirements, returns '-1' */
     public int getNextIndex(int index, @MagicConstant(flags = {NEXT_DEFAULT, NEXT_REVERSED, NEXT_STOP_WHEN_END, NEXT_EVERY_ITEM}) int flags) {
         int count = samples.size();
@@ -208,6 +208,27 @@ public class Shipment extends AbstractShipment {
         }
         // if all samples are packed
         return -1;
+    }
+
+    /** Return index of last sample with the same sample mask */
+    // TODO: in developing
+    public int getLastIndex(int index) {
+        Sample sample = samples.get(index);
+        // get sample mask
+
+
+        Sample lastSample;
+        int last;
+        do {
+            last = getNextIndex(++index, NEXT_EVERY_ITEM | NEXT_STOP_WHEN_END);
+            if (last < 0) return -1;        // end of list reached
+            lastSample = samples.get(last);
+
+            // analyze codes
+
+        } while (sample.get(SAMPLE_CODE).equals(lastSample.get(SAMPLE_CODE)));
+
+        return last;
     }
 
     /** Get position of sample with {@param index} in the table according to box options.
