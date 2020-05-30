@@ -3,14 +3,15 @@ package ru.bioresourceslab;
 import org.intellij.lang.annotations.MagicConstant;
 
 public final class Sample {
-    public static final int SAMPLE_CODE = 0x01;
-    public static final int SAMPLE_WEIGHT = 0x02;
-    public static final int SAMPLE_PACKED = 0x04;
-    public static final int SAMPLE_STORAGE = 0x08;
-    public static final int SAMPLE_RACK = 0x10;
-    public static final int SAMPLE_BOX = 0x20;
-    public static final int SAMPLE_ROW = 0x40;
-    public static final int SAMPLE_COLUMN = 0x80;
+    public static final int SAMPLE_CODE = 1;
+    public static final int SAMPLE_WEIGHT = 1 << 1;
+    public static final int SAMPLE_PACKED = 1 << 2;
+    public static final int SAMPLE_STORAGE = 1 << 3;
+    public static final int SAMPLE_RACK = 1 << 4;
+    public static final int SAMPLE_BOX = 1 << 5;
+    public static final int SAMPLE_ROW = 1 << 6;
+    public static final int SAMPLE_COLUMN = 1 << 7;
+//    public static final int SAMPLE_LOCATION = SAMPLE_STORAGE | SAMPLE_RACK | SAMPLE_BOX | SAMPLE_ROW | SAMPLE_COLUMN;
     public static final int SAMPLE_LOCATION = 0xF8;
     public static final int SAMPLE_ALL = 0xFF;
 

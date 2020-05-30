@@ -3,8 +3,6 @@ package ru.bioresourceslab;
 import com.intellij.uiDesigner.core.GridConstraints;
 import com.intellij.uiDesigner.core.GridLayoutManager;
 import com.intellij.uiDesigner.core.Spacer;
-import edu.cmu.sphinx.api.Configuration;
-import edu.cmu.sphinx.api.LiveSpeechRecognizer;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.NotNull;
 
@@ -23,6 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static ru.bioresourceslab.Sample.SAMPLE_CODE;
+import static ru.bioresourceslab.Shipment.*;
 
 public class AppUI extends JFrame {
     private JPanel mainPanel;
@@ -50,23 +49,8 @@ public class AppUI extends JFrame {
     public static final int UI_SELECTION = 0x04;
     public static final int UI_ALL = 0x07;
 
-    public static final String ACOUSTIC_MODEL =
-            "resource:/cmusphinx-ru-5.2/";
-    public static final String DICTIONARY_PATH =
-            "resource:/cmusphinx-ru-5.2/spa.dic";
-    public static final String LANGUAGE_MODEL =
-            "resource:/cmusphinx-ru-5.2/spa.lm";
-//    public static final String LANGUAGE_MODEL =
-//            "resource:/cmusphinx-ru-5.2/3589.lm";
-//    public static final String LANGUAGE_MODEL =
-//            "resource:/cmusphinx-ru-5.2/6147.lm";
-
-    Configuration configuration;
-    LiveSpeechRecognizer recognizer;
-    double rangeLower;
-    double rangeUpper;
-
     private Shipment shipment;
+    private RecognizerThread recThread;
 
     // debug variables
     final Logger log = Logger.getLogger("SPA Logger");
@@ -93,6 +77,7 @@ public class AppUI extends JFrame {
             @Override
             public void windowClosing(WindowEvent e) {
                 super.windowClosing(e);
+                if (recThread != null) recThread.close();
                 if (shipment != null) shipment.saveListToFile();
             }
         });
@@ -111,8 +96,7 @@ public class AppUI extends JFrame {
             @Override
             public void contentsChanged(ListDataEvent e) {
             }
-        });//*/
-        log.fine("Загрузка параметров...");
+        });
 
         // loading icon
         Image titleIcon = Toolkit.getDefaultToolkit().createImage(getClass().getClassLoader().getResource("title.png"));
@@ -131,22 +115,72 @@ public class AppUI extends JFrame {
         }
 
 // initializing recognizer
-        configuration = new Configuration();
-        configuration.setAcousticModelPath(ACOUSTIC_MODEL);
-        configuration.setDictionaryPath(DICTIONARY_PATH);
-        configuration.setLanguageModelPath(LANGUAGE_MODEL);
+        log.fine("Инициализация распознавателя...");
         try {
-            recognizer = new LiveSpeechRecognizer(configuration);
+            recThread = new RecognizerThread() {
+                @Override
+                protected void uiRefresh() {
+                    startButton.setText(this.pauseFlag ? "Начать работу" : "Остановить работу");
+                }
+
+                @Override
+                protected void analyze(String command) {
+                    int index = samplesList.getSelectedIndex();
+                    Sample sample = shipment.getSample(index);
+                    if (sample == null) return;
+
+                    // if weight was recognized, setWeight and go next sample
+                    if (this.interpretWeight(command)) {
+                        sample.setWeight(result);
+                        // output result in status-bar
+                        log.fine(sample.get(SAMPLE_CODE | Sample.SAMPLE_WEIGHT));
+
+                        if (!sample.getPacked())
+                            shipment.revertSampleStatus(index);
+                        this.pauseFlag = !itemSelect(true, NEXT_DEFAULT);
+                        if (this.pauseFlag)
+                            log.fine("Работа закончена: список обработан.");
+                    } else {
+                        // analyze commands
+                        switch (result) {
+                            case COMMAND_END: {
+                                this.pause();
+                                log.info("Команда: завершить работу");
+                                break;
+                            }
+                            case COMMAND_NEXT: {
+                                itemSelect(true, NEXT_DEFAULT);
+                                log.info("Команда: дальше");
+                                break;
+                            }
+                            case COMMAND_PREVIOUS: {
+                                itemSelect(true, NEXT_REVERSED | NEXT_EVERY_ITEM);
+                                log.info("Команда: назад");
+                                break;
+                            }
+                            default: {
+                                if (inDeveloping) {
+                                    log.config(result);
+                                } else {
+                                    log.config("Не распознано. Повторите.");
+                                }
+                            }
+                        } // end switch
+                    } // end if/else
+                } // end analyze()
+            };
         } catch (Exception ex) {
             log.severe("Ошибка распознавания: распознаватель не инициализирован!");
             return;
         }
+        recThread.start();
         log.fine("Распознаватель инициализирован.");
 
 // initialize Shipment object
         shipment = new Shipment();
 
 // loading settings (fonts, box parameters, etc)
+        log.fine("Загрузка параметров...");
         String settingsFileName = "spa.properties";
         final Properties properties = new Properties();
         InputStream projectProperties;
@@ -209,8 +243,9 @@ public class AppUI extends JFrame {
         shipment.setIdentifiers(fIDs);
 
         // loading weight range
-        rangeLower = parseNumDef(properties.getProperty("range.lower"), 0.0);
-        rangeUpper = parseNumDef(properties.getProperty("range.upper"), 1.5);
+        double lower = parseNumDef(properties.getProperty("range.lower"), 0.0);
+        double upper = parseNumDef(properties.getProperty("range.upper"), 1.5);
+        recThread.setRanges(lower, upper);
 
         // loading parameters
         boolean autoSelect = properties.getProperty("autoselect").equals("true");
@@ -356,13 +391,17 @@ public class AppUI extends JFrame {
         // sample move up by 1
         sampleMoveUpButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
-            shipment.moveSample(index, index - 1);
+            int destination = index - 1;
+            if ((e.getModifiers() & ActionEvent.ALT_MASK) != 0) destination = index - 10;
+            shipment.moveSample(index, destination);
         });
 
         // sample move down by 1
         sampleMoveDownButton.addActionListener(e -> {
             int index = samplesList.getSelectedIndex();
-            shipment.moveSample(index, index + 1);
+            int destination = index + 1;
+            if ((e.getModifiers() & ActionEvent.ALT_MASK) != 0) destination = index + 10;
+            shipment.moveSample(index, destination);
         });
 
         // load list
@@ -383,17 +422,15 @@ public class AppUI extends JFrame {
 
         // debug button
         debugButton.addActionListener(e -> {
-            // up when SHIFT pressed
-            boolean moveDown = (e.getModifiers() & ActionEvent.SHIFT_MASK) == 0;
-            // don't bypass when ALT pressed
-            boolean bypassPacked = (e.getModifiers() & ActionEvent.ALT_MASK) == 0;
-            // continue on end when CTRL pressed
-            boolean continueOnEnd = (e.getModifiers() & ActionEvent.CTRL_MASK) != 0;
-            String msg = "" + itemSelect(moveDown, bypassPacked, continueOnEnd);
-            log.info(msg);
+//            // up when SHIFT pressed
+//            int moveUp = Boolean.compare(((e.getModifiers() & ActionEvent.SHIFT_MASK) != 0), false);
+//            // don't bypass when ALT pressed
+//            int selEverything = Boolean.compare(((e.getModifiers() & ActionEvent.ALT_MASK) != 0), false) << 2;
+//            // stop on end when CTRL pressed
+//            int stopOnEnd = Boolean.compare(((e.getModifiers() & ActionEvent.CTRL_MASK) != 0), false) << 1;
+//            String msg = "" + itemSelect(true, moveUp + stopOnEnd + selEverything);
+//            log.info(msg);
 //            itemSelect(false, true, true);
-            // debug action
-            debugAction();
         });
         log.fine("Готов к работе.");
     }
@@ -486,28 +523,14 @@ public class AppUI extends JFrame {
     }
 
     // select next/previous (unpacked) sample in the list and return true, if the list is end may return to beginning
-    private boolean itemSelect(boolean moveDown, boolean bypassPacked, boolean continueOnEnd) {
+    private boolean itemSelect(boolean refresh, @MagicConstant(flags = {NEXT_DEFAULT, NEXT_REVERSED, NEXT_STOP_WHEN_END, NEXT_EVERY_ITEM}) int flags) {
         int index = samplesList.getSelectedIndex();
-        int count = shipment.getSamplesCount();
-        for (int i = 0; i < count; i++) {
-            // refresh index
-            index = moveDown ? ++index : --index;
-            // проверка на допустимость индекса
-            if (!continueOnEnd && ((index >= count) || (index < 0))) return false;
-            if (index < 0)
-                index = count - 1;
-            if (index >= count)
-                index = 0;
-
-//          Another way to check NotNull sample: without isSamplePacked method
-//            Sample sample = shipment.getSample(index);
-//            if (!bypassPacked || ((sample != null) && !sample.getPacked())) {
-            if (!bypassPacked || !shipment.isSamplePacked(index)) {
-                refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
-                return true;
-            }
+        int next = shipment.getNextIndex(index, flags);
+        if (next < 0) return false;
+        if (refresh) {
+            refreshUI(UI_SAMPLE_INFO | UI_SELECTION, next);
         }
-        return false;
+        return true;
     }
 
     private void startWork() {
@@ -519,112 +542,16 @@ public class AppUI extends JFrame {
         }
         // check if list is already done
         // Здесь можно использовать результат метода itemSelection. FALSE, если следующего элемента нет
-        if (!itemSelect(true, true, true)) {
+        if (!itemSelect(false, NEXT_DEFAULT)) {
             log.info("Все образцы уже обработаны.");
             return;
         }
 
-        // recognizer inner-class thread
-        class RecThread extends Thread {
-            private String result;
-
-            @Override
-            public void run() {
-                final String COMMAND_END = "command_end";
-                final String COMMAND_PREVIOUS = "command_back";
-                final String COMMAND_NEXT = "command_next";
-
-                startButton.setText("Остановить работу");
-                startButton.setEnabled(false); // TODO: убрать после наладки остановки кнопкой;
-                boolean endOfSamples = false;
-                recognizer.startRecognition(true);
-                while (!isInterrupted()) {
-                    String utterance = recognizer.getResult().getHypothesis();
-
-                    int index = samplesList.getSelectedIndex();
-                    Sample sample = shipment.getSample(index);
-                    if (sample == null) continue;
-
-                    // if weight was recognized, setWeight and go next sample
-                    if (interpretWeight(utterance)) {
-                        sample.setWeight(result);
-                        // output result in status-bar
-                        log.info(sample.get(SAMPLE_CODE | Sample.SAMPLE_WEIGHT));
-
-                        if (!sample.getPacked())
-                            shipment.revertSampleStatus(samplesList.getSelectedIndex());
-                        endOfSamples = !itemSelect(true, true, true);
-                    } else {
-                        // analyze commands
-                        switch (result) {
-                            case COMMAND_END: {
-                                interrupt();
-                                log.info("Команда: завершить работу");
-                                break;
-                            }
-                            case COMMAND_NEXT: {
-                                itemSelect(true, false, true);
-                                log.info("Команда: дальше");
-                                break;
-                            }
-                            case COMMAND_PREVIOUS: {
-                                itemSelect(false, false, true);
-                                log.info("Команда: назад");
-                                break;
-                            }
-                            default: {
-                                if (inDeveloping) {
-                                    log.config(result);
-                                } else {
-                                    log.config("Не распознано. Повторите.");
-                                }
-                            }
-                        }
-                    }
-                    if (endOfSamples) {
-                        log.fine("Работа закончена: список обработан.");
-                        interrupt();
-                    }
-                }
-                recognizer.stopRecognition();
-                startButton.setText("Начать работу");
-                startButton.setEnabled(true); // TODO: убрать после наладки остановки кнопкой;
-            }
-
-            private boolean interpretWeight(@NotNull String source) {       // interpret the result and set it to 'result'. Returns TRUE if is a weight
-                String s = source.replaceFirst(" ", ".");   // replace first 'space' to 'dot'
-                String res = s.replace(" ", "");    // delete all spaces from string
-
-                // analyze if the weight is correct
-                try {
-                    double weight = Double.parseDouble(res);
-                    if ((weight > rangeLower) & (weight < rangeUpper)) {
-                        result = String.valueOf(weight);
-                        return true;
-                    }
-                } catch (NumberFormatException e) {
-                    // if res have 'dot'-char, then it is not a command & not weight
-                    if (res.indexOf('.') > -1) {
-                        result = "-ERROR";
-                        return false;
-                    }
-                }
-                result = res;
-                return false;
-            }
+        if (recThread.paused()) {
+            recThread.proceed();
+        } else {
+            recThread.pause();
         }
-
-        // starting thread
-        RecThread rec = new RecThread();
-        rec.setName("SPA Recognizer thread");
-        log.fine("Запуск потока распознавания");
-        rec.start();//*/
-    }
-
-    private void debugAction() {
-//        String msg = Location.getLocationFromStr("1.2.3.4.5", Location.LOC_BOX);
-//        String msg = String.valueOf(samplesList.getModel().getSize());
-//        log.info(msg);
     }
 
     {
@@ -654,12 +581,12 @@ public class AppUI extends JFrame {
         final JScrollPane scrollPane2 = new JScrollPane();
         scrollPane2.setVerticalScrollBarPolicy(22);
         mainPanel.add(scrollPane2, new GridConstraints(1, 1, 1, 1, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_BOTH, GridConstraints.SIZEPOLICY_FIXED, GridConstraints.SIZEPOLICY_CAN_SHRINK | GridConstraints.SIZEPOLICY_WANT_GROW, null, new Dimension(200, -1), null, 0, false));
-        samplesList = new JList();
+        samplesList = new JList<>();
         samplesList.setSelectionMode(0);
         scrollPane2.setViewportView(samplesList);
         final JSeparator separator1 = new JSeparator();
         mainPanel.add(separator1, new GridConstraints(4, 0, 1, 2, GridConstraints.ANCHOR_CENTER, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_WANT_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
-        statusBox = new JComboBox();
+        statusBox = new JComboBox<>();
         mainPanel.add(statusBox, new GridConstraints(5, 0, 1, 2, GridConstraints.ANCHOR_WEST, GridConstraints.FILL_HORIZONTAL, GridConstraints.SIZEPOLICY_CAN_GROW, GridConstraints.SIZEPOLICY_FIXED, null, null, null, 0, false));
         final JPanel panel1 = new JPanel();
         panel1.setLayout(new GridLayoutManager(2, 5, new Insets(0, 0, 0, 0), -1, -1));

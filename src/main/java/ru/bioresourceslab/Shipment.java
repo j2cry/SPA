@@ -1,6 +1,7 @@
 package ru.bioresourceslab;
 
 import org.apache.poi.ss.usermodel.*;
+import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -93,24 +94,21 @@ public class Shipment extends AbstractShipment {
 
     /** Clear list and table; set shipment number to '0' */
     public void clear() {
-        samples.clear();
+        synchronized (samples) {
+            samples.clear();
+        }
         map.setRowCount(0);
         map.setColumnCount(boxOptions.getColumnsCount());
         number = "0";
         fireEvent(this, EVENT_SAMPLE_REMOVED, -1);
     }
 
-//    /** Insert sample {@param newSample} at {@param index} */
-//    public void addSample(Sample newSample, int index) {
-//        samples.add(index, newSample);
-//        convertToMap();
-//        fireEvent(this, EVENT_SAMPLE_ADDED, index);
-//    }
-
     /** Insert array of samples {@param newSamples} at {@param index} */
     public void addSamples(@NotNull ArrayList<Sample> newSamples, int index) {
         for (Sample sample : newSamples) {
-            samples.add(index, sample);
+            synchronized (samples) {
+                samples.add(index, sample);
+            }
         }
         convertToMap();
         fireEvent(this, EVENT_SAMPLE_ADDED, index);
@@ -121,20 +119,27 @@ public class Shipment extends AbstractShipment {
 //      also can use if JavaSource 1.9+
 //        Objects.checkIndex(index, samples.getSize());
         if ((index >= samples.size()) || (index < 0)) return;
-        samples.remove(index);
+        synchronized (samples) {
+            samples.remove(index);
+        }
         convertToMap();
         fireEvent(this, EVENT_SAMPLE_REMOVED, index);
     }
 
     /** Move element from {@param index} to {@param destination} */
     public void moveSample(int index, int destination) {
-        if ((destination >= samples.size()) || (destination < 0)) return;
         if ((index >= samples.size()) || (index < 0)) return;
+        if (destination >= samples.size())
+            destination = samples.size() - 1;
+        if (destination < 0)
+            destination = 0;
 
         Sample sample = samples.get(index);
         Sample backup = samples.get(destination);
-        samples.set(destination, sample);
-        samples.set(index, backup);
+        synchronized (samples) {
+            samples.set(destination, sample);
+            samples.set(index, backup);
+        }
 
         map.setValueAt(sample, translate(destination).y, translate(destination).x);
         map.setValueAt(backup, translate(index).y, translate(index).x);
@@ -151,56 +156,54 @@ public class Shipment extends AbstractShipment {
 
     /** Return packed status of sample by index.
      * If index is out of range, returns FALSE. */
-    public boolean isSamplePacked (int index) {
-        if ((index >= samples.size()) || (index < 0)) return false;
-        return samples.get(index).getPacked();
+    public boolean sampleIsNotPacked(int index) {
+        if ((index >= samples.size()) || (index < 0)) return true;
+        if (samples.get(index) == null) return true;
+        return !samples.get(index).getPacked();
     }
 
     /** Replace element at {@param index} with {@param newSample} */
     public void setSample(int index, Sample newSample) {
         if ((index >= samples.size()) || (index < 0)) return;
-        samples.set(index, newSample);
+        synchronized (samples) {
+            samples.set(index, newSample);
+        }
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
-    // rewrite some fields in element at [index] with [newSample]
-/*    public void setSample(int index, @MagicConstant(flags = {SAMPLE_CODE, SAMPLE_WEIGHT, SAMPLE_PACKED, SAMPLE_STORAGE,
-            SAMPLE_RACK, SAMPLE_BOX, SAMPLE_ROW, SAMPLE_COLUMN, SAMPLE_LOCATION, SAMPLE_ALL}) int flags, Sample newSample) {
-        if ((index >= samples.getSize()) || (index < 0)) return;
-        if ((flags & 0xFF) == 0) return;
+    /** Flag for {@code getNextIndex(...)} to default finding: down the list, list as loop, bypass packed */
+    public static final int NEXT_DEFAULT = 0;
 
-        if ((flags & SAMPLE_CODE) != 0) {
-            samples.get(index).setCode(newSample.get(SAMPLE_CODE));
-        }
+    /** Flag for {@code getNextIndex(...)} to find next sample in reverse */
+    public static final int NEXT_REVERSED = 1;
 
-        if ((flags & SAMPLE_WEIGHT) != 0) {
-            samples.get(index).setWeight(newSample.get(SAMPLE_WEIGHT));
-        }
+    /** Flag for {@code getNextIndex(...)} to continue searching from the beginning of the list when the end is reached */
+    public static final int NEXT_STOP_WHEN_END = 1 << 1;
 
-        if ((flags & SAMPLE_PACKED) != 0) {
-            samples.get(index).setPacked(newSample.getPacked());
-        }
+    /** Flag for {@code getNextIndex(...)} to skip samples checked as packed */
+    public static final int NEXT_EVERY_ITEM = 1 << 2;
 
-        if ((flags & SAMPLE_STORAGE) != 0) {
-            samples.get(index).setStorage(newSample.get(SAMPLE_STORAGE));
-        }
+    /** Returns the next sample index in the list starting with {@param index} and corresponding to {@param flags}
+     * If there is no samples that meet the requirements, returns '-1' */
+    public int getNextIndex(int index, @MagicConstant(flags = {NEXT_DEFAULT, NEXT_REVERSED, NEXT_STOP_WHEN_END, NEXT_EVERY_ITEM}) int flags) {
+        int count = samples.size();
+        for (int i = 0; i < count; i++) {
+            // refresh index
+            index = ((flags & NEXT_REVERSED) != 0) ? --index : ++index;
+            // check if index out of range and loop selection flag is set
+            if (((flags & NEXT_STOP_WHEN_END) != 0) && ((index >= count) || (index < 0))) return -1;  // reached end of list
+            if (index < 0)
+                index = count - 1;
+            if (index >= count)
+                index = 0;
 
-        if ((flags & SAMPLE_RACK) != 0) {
-            samples.get(index).setRack(newSample.get(SAMPLE_RACK));
+            if (((flags & NEXT_EVERY_ITEM) != 0) || sampleIsNotPacked(index)) {
+                return index;
+            }
         }
-
-        if ((flags & SAMPLE_BOX) != 0) {
-            samples.get(index).setBox(newSample.get(SAMPLE_BOX));
-        }
-
-        if ((flags & SAMPLE_ROW) != 0) {
-            samples.get(index).setRow(newSample.get(SAMPLE_ROW));
-        }
-
-        if ((flags & SAMPLE_COLUMN) != 0) {
-            samples.get(index).setColumn(newSample.get(SAMPLE_COLUMN));
-        }
-    }//*/
+        // if all samples are packed
+        return -1;
+    }
 
     /** Get position of sample with {@param index} in the table according to box options.
      * Returns: Point.y = row;
@@ -222,27 +225,14 @@ public class Shipment extends AbstractShipment {
     /** Reverse sample packed status */
     public void revertSampleStatus(int index) {
         if ((index >= samples.size()) || (index < 0)) return;
-        samples.get(index).setPacked(!samples.get(index).getPacked());
+        synchronized (samples) {
+            samples.get(index).setPacked(!samples.get(index).getPacked());
+        }
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
     public int getSamplesCount() {
         return samples.size();
-    }
-
-    /** Convert current list to table according to box options. */
-    public void convertToMap() {
-        map.setRowCount(0);
-        map.setRowCount(boxOptions.translate(samples.size() - 1).y + 1);
-        map.setColumnCount(boxOptions.getColumnsCount());
-        for (int index = 0; index < samples.size(); index++) {
-            Point pos = boxOptions.translate(index);
-            map.setValueAt(samples.get(index), pos.y, pos.x);
-//            if (samples.get(index).getPacked())
-//                map.setValueAt(samples.get(index).get(SAMPLE_CODE | SAMPLE_WEIGHT), pos.y, pos.x);
-//            else
-//                map.setValueAt(samples.get(index).get(SAMPLE_CODE), pos.y, pos.x);
-        }
     }
 
     // import list from .XLS or .XLSX file
@@ -579,8 +569,23 @@ public class Shipment extends AbstractShipment {
         log.info("Экспорт успешно завершен. ");
     }
 
+    /** Convert current list to table according to box options. */
+    protected void convertToMap() {
+        map.setRowCount(0);
+        map.setRowCount(boxOptions.translate(samples.size() - 1).y + 1);
+        map.setColumnCount(boxOptions.getColumnsCount());
+        for (int index = 0; index < samples.size(); index++) {
+            Point pos = boxOptions.translate(index);
+            map.setValueAt(samples.get(index), pos.y, pos.x);
+//            if (samples.get(index).getPacked())
+//                map.setValueAt(samples.get(index).get(SAMPLE_CODE | SAMPLE_WEIGHT), pos.y, pos.x);
+//            else
+//                map.setValueAt(samples.get(index).get(SAMPLE_CODE), pos.y, pos.x);
+        }
+    }
+
     // Refactors float string value to int string value
-    private String getCellString(@NotNull String source) {
+    protected String getCellString(@NotNull String source) {
         int i = source.indexOf(".");
         if (i > 0) {
             return source.substring(0, source.indexOf("."));
