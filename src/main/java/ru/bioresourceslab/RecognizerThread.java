@@ -99,7 +99,7 @@ public abstract class RecognizerThread extends Thread {
             analyze(utterance);
             log.info(result);
         }
-        log.info("Поток распознавателя завершен.");
+        log.fine("Поток распознавателя завершен.");
         recognizer.stopRecognition();
     }
 

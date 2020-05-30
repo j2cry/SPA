@@ -11,9 +11,7 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 import java.awt.Font;
 import java.awt.*;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -61,33 +59,40 @@ public class Shipment extends AbstractShipment {
         this(new Sample("Code", "Weight", "st0", "st1", "st2", "st3", "st4"));
     }
 
+    /** Set shipment number */
     public void setNumber(String number) {
         this.number = number;
     }
 
+    /** Set in-file names of columns */
     public void setIdentifiers(Sample identifiers) {
         this.identifiers = identifiers;
     }
 
+    /** Set box parameters */
     public void setBoxOptions(int rows, int columns, int separator) {
         boxOptions.set(rows, columns, separator);
         map.setColumnCount(columns);
     }
 
+    /** Set export fonts and cell width */
     public void setExportParameters(Font headerFont, Font font, int cellWidth) {
         if (headerFont != null) exportHeaderFont = headerFont;
         if (font != null) exportFont = font;
         if (cellWidth > 0) this.cellWidth = cellWidth;
     }
 
+    /** Get model of samples list */
     public ListModel<Sample> getListModel() {
         return samples;
     }
 
+    /** Get model of samples map */
     public TableModel getMapModel() {
         return map;
     }
 
+    /** Get count of boxes in this shipment */
     public int getBoxesCount() {
         return boxOptions.getBoxesCount(samples.size());
     }
@@ -114,7 +119,7 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_ADDED, index);
     }
 
-    // remove element from list at [index]
+    /** Remove sample from list at {@param index} */
     public void removeSample(int index) {
 //      also can use if JavaSource 1.9+
 //        Objects.checkIndex(index, samples.getSize());
@@ -231,12 +236,12 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
 
+    /** Get number of samples in this shipment */
     public int getSamplesCount() {
         return samples.size();
     }
 
-    // import list from .XLS or .XLSX file
-    // TODO: не работает открывание .XLSX
+    /** Load samples list from .XLS or .XLSX file */
     public void importList() {
         JFileChooser openDialog = new JFileChooser();
         openDialog.setFileFilter(new FileNameExtensionFilter("Excel files", "xls", "xlsx"));
@@ -252,7 +257,7 @@ public class Shipment extends AbstractShipment {
 
         Workbook workbook;
         try {
-            workbook = WorkbookFactory.create(file);
+            workbook = WorkbookFactory.create(file, null, true);
         } catch (IOException e) {
             log.log(Level.SEVERE, "Ошибка импорта: не удалось открыть файл. ");
             return;
@@ -322,7 +327,7 @@ public class Shipment extends AbstractShipment {
         log.info("Список успешно загружен. ");
     }
 
-    // auto save current list state to .XLS file
+    /** Save samples list to .XLS file */
     public void saveListToFile() {
         if (samples.size() == 0) return;
 
@@ -443,7 +448,7 @@ public class Shipment extends AbstractShipment {
         }
     }
 
-    // TODO: не работает сохранение .XLSX
+    /** Save shipment map to .XLS file */
     public void saveMapToFile() {
         if (samples.size() == 0) {
             log.log(Level.WARNING, "Ошибка экспорта: нет данных в таблице! ");
@@ -455,7 +460,9 @@ public class Shipment extends AbstractShipment {
         }
 
         JFileChooser saveDialog = new JFileChooser();
-        saveDialog.setFileFilter(new FileNameExtensionFilter("Excel file", "xls", "xlsx"));
+        saveDialog.addChoosableFileFilter(new FileNameExtensionFilter("Excel file 97-2003", "xls"));
+        saveDialog.addChoosableFileFilter(new FileNameExtensionFilter("Excel file", "xlsx"));
+
         saveDialog.setAcceptAllFileFilterUsed(false);
         saveDialog.setFileSelectionMode(JFileChooser.FILES_ONLY);
         File desktopDir = new File((System.getProperty("user.home") + "/Desktop"));
@@ -471,7 +478,7 @@ public class Shipment extends AbstractShipment {
         Workbook workbook;
         try {
             // set true if .XLSX
-            workbook = WorkbookFactory.create(false);
+            workbook = WorkbookFactory.create(file.getName().endsWith(".xlsx"));
         } catch (IOException e) {
             log.log(Level.WARNING, "Ошибка экспорта: не удалось создать файл. ");
             return;
@@ -572,10 +579,10 @@ public class Shipment extends AbstractShipment {
     /** Convert current list to table according to box options. */
     protected void convertToMap() {
         map.setRowCount(0);
-        map.setRowCount(boxOptions.translate(samples.size() - 1).y + 1);
+        map.setRowCount(this.translate(samples.size() - 1).y + 1);
         map.setColumnCount(boxOptions.getColumnsCount());
         for (int index = 0; index < samples.size(); index++) {
-            Point pos = boxOptions.translate(index);
+            Point pos = this.translate(index);
             map.setValueAt(samples.get(index), pos.y, pos.x);
 //            if (samples.get(index).getPacked())
 //                map.setValueAt(samples.get(index).get(SAMPLE_CODE | SAMPLE_WEIGHT), pos.y, pos.x);
