@@ -3,7 +3,6 @@ package ru.bioresourceslab;
 import org.apache.poi.ss.usermodel.*;
 import org.intellij.lang.annotations.MagicConstant;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
@@ -11,7 +10,9 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 import java.awt.Font;
 import java.awt.*;
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -108,11 +109,11 @@ public class Shipment extends AbstractShipment {
         fireEvent(this, EVENT_SAMPLE_REMOVED, -1);
     }
 
-    /** Insert array of samples {@param newSamples} at {@param index} */
+    /** Insert array of samples {@param newSamples} at {@param index} skipping null values */
     public void addSamples(@NotNull ArrayList<Sample> newSamples, int index) {
         for (Sample sample : newSamples) {
             synchronized (samples) {
-                samples.add(index, sample);
+                if (sample != null) samples.add(index, sample);
             }
         }
         convertToMap();
@@ -152,26 +153,27 @@ public class Shipment extends AbstractShipment {
     }
 
     /** Get sample by index.
-     * Returns 'null' if index is out of range or sample was set to 'null' */
-    @Nullable
+     * Returns new sample if index is out of range or sample was set to 'null' */
+    @NotNull
     public Sample getSample(int index) {
-        if ((index >= samples.size()) || (index < 0)) return null;
+        if (((index >= samples.size()) || (index < 0)) || (samples.get(index) == null))
+            return new Sample("out of range", "x", "x", "x", "x", "x", "x");
         return samples.get(index);
     }
 
     /** Return packed status of sample by index.
      * If index is out of range, returns FALSE. */
     public boolean sampleIsNotPacked(int index) {
-        if ((index >= samples.size()) || (index < 0)) return true;
-        if (samples.get(index) == null) return true;
+        if ((index >= samples.size()) || (index < 0)) return false;
+//        if (samples.get(index) == null) return true;
         return !samples.get(index).getPacked();
     }
 
-    /** Replace element at {@param index} with {@param newSample} */
+    /** Replace element at {@param index} with {@param newSample} if it is not null */
     public void setSample(int index, Sample newSample) {
         if ((index >= samples.size()) || (index < 0)) return;
         synchronized (samples) {
-            samples.set(index, newSample);
+            if (newSample != null) samples.set(index, newSample);
         }
         fireEvent(this, EVENT_SAMPLE_CHANGED, index);
     }
@@ -211,24 +213,17 @@ public class Shipment extends AbstractShipment {
     }
 
     /** Return index of last sample with the same sample mask */
-    // TODO: in developing
     public int getLastIndex(int index) {
+        if ((index >= samples.size()) || (index < 0)) return -1;
         Sample sample = samples.get(index);
-        // get sample mask
+        int count = samples.size();
 
-
-        Sample lastSample;
-        int last;
-        do {
-            last = getNextIndex(++index, NEXT_EVERY_ITEM | NEXT_STOP_WHEN_END);
-            if (last < 0) return -1;        // end of list reached
-            lastSample = samples.get(last);
-
-            // analyze codes
-
-        } while (sample.get(SAMPLE_CODE).equals(lastSample.get(SAMPLE_CODE)));
-
-        return last;
+        for (int i = index + 1; i < count; i++) {
+            Sample lastSample = samples.get(i);
+            if (!sample.getMask().equals(lastSample.getMask()))
+                return i - 1;
+        }
+        return samples.size() - 1;
     }
 
     /** Get position of sample with {@param index} in the table according to box options.

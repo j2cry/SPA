@@ -21,6 +21,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static ru.bioresourceslab.Sample.SAMPLE_CODE;
+import static ru.bioresourceslab.Sample.SAMPLE_LOCATION;
 import static ru.bioresourceslab.Shipment.*;
 
 public class AppUI extends JFrame {
@@ -126,8 +127,8 @@ public class AppUI extends JFrame {
                 @Override
                 protected void analyze(String command) {
                     int index = samplesList.getSelectedIndex();
+                    // здесь мне не нужен Sample, если будет функция shipment.setSampleWeight
                     Sample sample = shipment.getSample(index);
-                    if (sample == null) return;
 
                     // if weight was recognized, setWeight and go next sample
                     if (this.interpretWeight(command)) {
@@ -300,7 +301,7 @@ public class AppUI extends JFrame {
                     Sample sample = (value instanceof Sample) ? (Sample) value : null;
                     if (sample == null) return null;
 
-                    JCheckBox listItem = new JCheckBox(sample.get(SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+                    JCheckBox listItem = new JCheckBox(sample.get(SAMPLE_CODE | SAMPLE_LOCATION));
                     listItem.setSelected(sample.getPacked());
                     listItem.setBackground(isSelected ? list.getSelectionBackground() : list.getBackground());
                     return listItem;
@@ -380,9 +381,7 @@ public class AppUI extends JFrame {
         // sample edit
         sampleEditButton.addActionListener(e -> {
             EditSampleUI editUI = new EditSampleUI(this, true, true);
-            Sample sample = shipment.getSample(samplesList.getSelectedIndex());
-            if (sample == null) return;
-            editUI.setData(sample.get(SAMPLE_CODE | Sample.SAMPLE_LOCATION));
+            editUI.setData(shipment.getSample(samplesList.getSelectedIndex()).get(SAMPLE_CODE | SAMPLE_LOCATION));
             if (editUI.showModal()) {
                 shipment.setSample(samplesList.getSelectedIndex(), editUI.getData().get(0));
             }
@@ -422,6 +421,9 @@ public class AppUI extends JFrame {
 
         // debug button
         debugButton.addActionListener(e -> {
+            int i = shipment.getLastIndex(samplesList.getSelectedIndex());
+            String msg = "last i=" + i;
+            log.info(msg);
 //            // up when SHIFT pressed
 //            int moveUp = Boolean.compare(((e.getModifiers() & ActionEvent.SHIFT_MASK) != 0), false);
 //            // don't bypass when ALT pressed
@@ -494,14 +496,9 @@ public class AppUI extends JFrame {
 //        int index = samplesList.isSelectionEmpty() ? 0 : samplesList.getSelectedIndex();
         // refresh infoLabels
         if ((flags & UI_SAMPLE_INFO) != 0) {
-            Sample sample = shipment.getSample(index);
-//            Sample lastSample = shipment.getEndCase(index);
-            if (sample != null) {
-                currentSampleLabel.setText(sample.get(SAMPLE_CODE));
-                fromPosLabel.setText(sample.get(Sample.SAMPLE_LOCATION));
-                // TODO: сделать вычисление и отображение toPos
-//                toPosLabel.setText();
-            }
+            currentSampleLabel.setText(shipment.getSample(index).get(SAMPLE_CODE));
+            fromPosLabel.setText(shipment.getSample(index).get(SAMPLE_LOCATION));
+            toPosLabel.setText( shipment.getSample( shipment.getLastIndex(index) ).get(SAMPLE_LOCATION) );
         }
         // refresh boxCounter
         if ((flags & UI_BOX_COUNTER) != 0) {

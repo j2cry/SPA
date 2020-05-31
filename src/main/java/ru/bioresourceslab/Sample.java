@@ -18,6 +18,8 @@ public final class Sample {
     public static final String DELIMITER = ".";
     public static final String SPACER = " ";
 
+    protected static final char[] MATERIAL_TYPE = {'T', 'B', 'S', 'C', 'P', 'A'};
+
     private final String code;
     private String weight;
     private boolean packed = false;
@@ -85,4 +87,18 @@ public final class Sample {
         }
         return result;
     }
+
+    /** Get a part of code before type char */
+    public String getMask() {
+        String mask = code;
+        // get sample mask
+        for (char c : MATERIAL_TYPE) {
+            int ci = mask.indexOf(c);
+            if (ci != -1) {
+                return mask.substring(0, ci);
+            }
+        }
+        return "no mask";
+    }
+
 }
