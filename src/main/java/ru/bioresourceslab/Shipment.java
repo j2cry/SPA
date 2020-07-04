@@ -238,9 +238,14 @@ public class Shipment extends AbstractShipment {
      * Returns: '-1': if row is out of range
                 '-2': if column is out of range */
     public int translate(int row, int column) {
+        if (samples.size() == 0) return -10;
         if ((row >= map.getRowCount()) || (row < 0)) return -1;
         if ((column >= map.getColumnCount()) || (column < 0)) return -2;
-        return boxOptions.translate(row, column);
+
+        int index = boxOptions.translate(row, column);
+        if (index > samples.size() - 1) index = samples.size() - 1;
+//        if (index < 0) index = 0;
+        return index;
     }
 
     /** Reverse sample packed status */

@@ -3,7 +3,7 @@ plugins {
 }
 
 group 'ru.bioresourceslab'
-version '0.10.A4.290'
+version '0.10.A4.293'
 
 //sourceCompatibility = 1.9
 //targetCompatibility = 1.9

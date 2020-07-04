@@ -81,10 +81,17 @@ public class BoxOptions {
 
     // translate table position to index considering separator
     public int translate(int row, int col) {
-//        int fullBoxesCount = row / (rows + separator);
-//        int fullRows = row - separator * fullBoxesCount;
-//        return fullRows * columns + col;
-        return (row - separator * row / (rows + separator)) * columns + col;
+        // checking on-separator click
+        while ((row % (rows + separator)) / rows >= 1) {
+            row--;
+        }
+
+        int fullBoxesCount = row / (rows + separator);
+        int fullRows = row - separator * fullBoxesCount;
+        return fullRows * columns + col;
+
+//        int ans = (row - separator * (row / (rows + separator))) * columns + col;
+//        return (row - separator * (row / (rows + separator))) * columns + col;
     }
 
 }

@@ -286,10 +286,12 @@ public class AppUI extends JFrame {
                 public void mouseClicked(MouseEvent e) {
 //                    super.mouseClicked(e);
                     int index = shipment.translate(mapTable.rowAtPoint(e.getPoint()), mapTable.columnAtPoint(e.getPoint()));
-                    if ((index >= shipment.getSamplesCount()) || (index < 0))
-                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, samplesList.getSelectedIndex());
-                    else
-                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
+                    refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
+
+//                    if ((index >= shipment.getSamplesCount()) || (index < 0))
+//                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, samplesList.getSelectedIndex());
+//                    else
+//                        refreshUI(UI_SAMPLE_INFO | UI_SELECTION, index);
                 }
             });
 
